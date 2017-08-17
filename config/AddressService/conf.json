@@ -15,16 +15,5 @@
     "UseCorePercentage": 100,
     "GCPercentage": 1000
   },
-  "ApplicationConfig": {
-    "AddressService": {
-      "ResponseHeaders": {
-        "CacheControl": {
-          "ResponseType": "public",
-          "NoCache": false,
-          "NoStore": false,
-          "MaxAgeInSeconds": 300
-        }
-      }
-    }
-  }
+  "ApplicationConfig": {}
 }

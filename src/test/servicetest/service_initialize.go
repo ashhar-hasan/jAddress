@@ -1,15 +1,15 @@
 package servicetest
 
 import (
+	"address"
 	"common/appconstant"
-	"hello"
 
 	"github.com/jabong/florest-core/src/core/service"
 )
 
 func InitializeTestService() {
 	service.RegisterHTTPErrors(appconstant.APPErrorCodeToHTTPCodeMap)
-	service.RegisterAPI(new(hello.HelloAPI))
+	service.RegisterAPI(new(address.AddressAPI))
 	initTestLogger()
 
 	initTestConfig()

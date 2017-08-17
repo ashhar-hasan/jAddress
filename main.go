@@ -1,12 +1,13 @@
 package main
 
 import (
+	"address"
 	"common/appconfig"
 	"common/appconstant"
 	"fmt"
+
 	"github.com/jabong/florest-core/src/common/utils/http"
 	"github.com/jabong/florest-core/src/core/service"
-	"hello"
 )
 
 //main is the entry point of the florest web service
@@ -21,7 +22,7 @@ func main() {
 }
 
 func registerAllApis() {
-	service.RegisterAPI(new(hello.HelloAPI))
+	service.RegisterAPI(new(address.AddressAPI))
 }
 
 func registerConfig() {

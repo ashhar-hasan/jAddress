@@ -1,11 +1,11 @@
 // @APIVersion 1.0.0
-// @basePath /{APP_NAME}/v1
-package hello
+// @basePath /AddressService/v1
+package address
 
 // @Title list
-// @Description get hello
+// @Description get address
 // @Accept  json
-// @Router /hello [get]
+// @Router /address [get]
 func list() {}
 
 // @Title geteSku
@@ -15,7 +15,7 @@ func list() {}
 // @Param   Offset     query    string     true        "offset"
 // @Param   SESSION_ID     header    string     true        "ssn"
 // @Param   TOKEN_ID     header    string     true        "token"
-// @Router /hello/update [get]
+// @Router /address/update [get]
 func geteSku() {}
 
 // @Title remove
@@ -24,7 +24,7 @@ func geteSku() {}
 // @Param   Sku     path    string     true        "sku to be removed"
 // @Param   SESSION_ID     header    string     true        "ssn"
 // @Param   TOKEN_ID     header    string     true        "token"
-// @Router /hello [delete]
+// @Router /address [delete]
 func remove() {}
 
 // @Title add
@@ -33,5 +33,5 @@ func remove() {}
 // @Param   BodyParam     body    AddParam     true        "body"
 // @Param   SESSION_ID    header    string     true        "ssn"
 // @Param   TOKEN_ID     header    string     true        "token"
-// @Router /hello [post]
+// @Router /address [post]
 func add() {}

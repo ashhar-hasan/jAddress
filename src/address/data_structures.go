@@ -1,6 +1,4 @@
-package hello
-
-import ()
+package address
 
 type AddParam struct {
 	Sku  string

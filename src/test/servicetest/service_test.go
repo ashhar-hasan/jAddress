@@ -16,7 +16,7 @@ func TestSearch(t *testing.T) {
 var _ = gk.Describe("Test my api :)", func() {
 	InitializeTestService()
 
-	apiName := "newApp"
+	apiName := "AddressService"
 	version := "v1"
 
 	gk.Describe("GET /"+apiName+"/healthcheck", func() {
@@ -34,9 +34,9 @@ var _ = gk.Describe("Test my api :)", func() {
 		})
 	})
 
-	gk.Describe("GET /"+apiName+"/"+version+"/hello", func() {
+	gk.Describe("GET /"+apiName+"/"+version+"/address", func() {
 
-		request := testUtil.CreateTestRequest("GET", "/"+apiName+"/"+version+"/hello")
+		request := testUtil.CreateTestRequest("GET", "/"+apiName+"/"+version+"/address")
 		response := GetResponse(request)
 		gk.Context("then the response", func() {
 

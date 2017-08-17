@@ -1,7 +1,7 @@
 {
   "LogLevel": 5,
   "DefaultLogType": "fileLoggerDefault",
-  "AppName": "florest-test-",
+  "AppName": "AddressService-",
   "FileLogger": [
     {
       "Key": "fileLoggerDefault",

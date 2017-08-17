@@ -5,5 +5,5 @@ import (
 )
 
 type AppConfig struct {
-	Hello florest_config.Application
+	AddressService florest_config.Application
 }
