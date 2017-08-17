@@ -1,0 +1,29 @@
+{
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/_libs": true
+    },
+    "rest-client.enableTelemetry": false,
+    "rest-client.previewResponseInUntitledDocument": true,
+    "rest-client.previewResponseSetUntitledDocumentLanguageByContentType": true,
+    "rest-client.includeAdditionalInfoInResponse": true,
+
+    "go.formatTool": "goimports",
+    "go.inferGopath": false,
+    "go.testOnSave": false,
+    "go.coverOnSave": true,
+    "go.coverageDecorator": "gutter",
+    "go.useCodeSnippetsOnFunctionSuggest": true,
+    "go.autocompleteUnimportedPackages": true,
+    "go.useLanguageServer": false,
+    "go.gotoSymbol.includeImports": true,
+    "go.enableCodeLens": {
+        "references": false,
+        "runtest": true
+    },
+    "go.liveErrors": {
+        "enabled": false,
+        "delay": 500
+    }
+}
