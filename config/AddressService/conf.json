@@ -15,5 +15,28 @@
     "UseCorePercentage": 100,
     "GCPercentage": 1000
   },
-  "ApplicationConfig": {}
+  "ApplicationConfig": {
+    "MySqlConfig": {
+      "Master": {
+        "Username": "ashhar",
+        "Password": "jb/@@$hu0711",
+        "Host": "127.0.0.1",
+        "Dbname": "address",
+        "Port": "3306",
+        "Timezone": "Asia/Kolkata",
+        "MaxOpenCon": 1000,
+        "MaxIdleCon": 5
+      },
+      "Slave": {
+        "Username": "ashhar",
+        "Password": "jb/@@$hu0711",
+        "Host": "127.0.0.1",
+        "Dbname": "address",
+        "Port": "3306",
+        "Timezone": "Asia/Kolkata",
+        "MaxOpenCon": 1000,
+        "MaxIdleCon": 5
+      }
+    }
+  }
 }

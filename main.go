@@ -26,7 +26,7 @@ func registerAllApis() {
 }
 
 func registerConfig() {
-	service.RegisterConfig(new(appconfig.AppConfig))
+	service.RegisterConfig(new(appconfig.AddressServiceConfig))
 }
 
 func registerErrors() {

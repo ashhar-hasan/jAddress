@@ -1,8 +1,10 @@
 package address
 
 import (
+	"common/appconfig"
 	"fmt"
 
+	"github.com/jabong/florest-core/src/common/config"
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/ratelimiter"
@@ -57,6 +59,9 @@ func (a *AddressAPI) GetHealthCheck() healthcheck.HCInterface {
 
 func (a *AddressAPI) Init() {
 	//api initialization should come here
+	c := config.GlobalAppConfig.ApplicationConfig
+	appConfig, _ := c.(*appconfig.AddressServiceConfig)
+	fmt.Println(appConfig.MySqlConfig.MySqlMaster.Username)
 }
 
 func (a *AddressAPI) GetRateLimiter() ratelimiter.RateLimiter {
