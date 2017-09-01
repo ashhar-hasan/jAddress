@@ -34,15 +34,45 @@ func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	addressWorkflow.Create()
 
 	//Creation of the nodes in the workflow definition
-	addressNode := new(Address)
-	addressNode.SetID("address node 1")
-	eerr := addressWorkflow.AddExecutionNode(addressNode)
-	if eerr != nil {
-		logger.Error(fmt.Sprintln(eerr))
+
+	queryTermEnhancer := new(QueryTermEnhancer)
+	queryTermEnhancer.SetID("1")
+	err := addressWorkflow.AddExecutionNode(queryTermEnhancer)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+		err = nil
+	}
+
+	queryTermValidator := new(QueryTermValidator)
+	queryTermValidator.SetID("2")
+	err = addressWorkflow.AddExecutionNode(queryTermValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+		err = nil
+	}
+	listAddressExecutor := new(ListAddressExecutor)
+	listAddressExecutor.SetID("3")
+	err = addressWorkflow.AddExecutionNode(listAddressExecutor)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+		err = nil
+	}
+
+	//Add the connection between the nodes
+	err = listAddressWorkflow.AddConnection(queryTermEnhancer, queryTermValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+		err = nil
+	}
+
+	err = listAddressWorkflow.AddConnection(queryTermValidator, listAddressExecutor)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+		err = nil
 	}
 
 	//Set start node for the search workflow
-	addressWorkflow.SetStartNode(addressNode)
+	addressWorkflow.SetStartNode(queryTermEnhancer)
 
 	//Assign the workflow definition to the Orchestrator
 	addressOrchestrator.Create(addressWorkflow)

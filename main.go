@@ -45,5 +45,9 @@ func registerInitFunc() {
 			http.DebugFlag:     "X-Jabong-Debug",
 		}
 		http.RegisterCustomHeader(appHeaderMap)
+		if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
+			fmt.Println("err  ", err)
+			logger.Error(err)
+		}
 	})
 }
