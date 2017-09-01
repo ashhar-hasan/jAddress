@@ -7,23 +7,23 @@ import (
 	workflow "github.com/jabong/florest-core/src/core/common/orchestrator"
 )
 
-type Address struct {
+type ListAddressExecutor struct {
 	id string
 }
 
-func (n *Address) SetID(id string) {
+func (n *ListAddressExecutor) SetID(id string) {
 	n.id = id
 }
 
-func (n Address) GetID() (id string, err error) {
+func (n ListAddressExecutor) GetID() (id string, err error) {
 	return n.id, nil
 }
 
-func (a Address) Name() string {
-	return "Address"
+func (a ListAddressExecutor) Name() string {
+	return "ListAddressExecutor"
 }
 
-func (a Address) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
+func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
 	//Business Logic
 	return io, &florest_constants.AppError{Code: errors.FunctionalityNotImplementedErrorCode, Message: "invalid request"}
 }

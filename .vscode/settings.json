@@ -1,8 +1,7 @@
 {
     "search.exclude": {
         "**/node_modules": true,
-        "**/bower_components": true,
-        "**/_libs": true
+        "**/bower_components": true
     },
     "rest-client.enableTelemetry": false,
     "rest-client.previewResponseInUntitledDocument": true,
