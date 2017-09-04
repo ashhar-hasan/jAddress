@@ -30,11 +30,11 @@ func (n QueryTermValidator) Name() string {
 }
 
 func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
-	profiler := profiler.NewProfiler()
-	profiler.StartProfile("QueryTermValidator")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("QueryTermValidator")
 
 	defer func() {
-		profiler.EndProfileWithMetric([]string{"QueryTermValidator_execute"})
+		prof.EndProfileWithMetric([]string{"QueryTermValidator_execute"})
 	}()
 
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
