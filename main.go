@@ -6,7 +6,9 @@ import (
 	"common/appconstant"
 	"fmt"
 
+	"github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/utils/http"
+	"github.com/jabong/florest-core/src/components/sqldb"
 	"github.com/jabong/florest-core/src/core/service"
 )
 
@@ -45,6 +47,10 @@ func registerInitFunc() {
 			http.DebugFlag:     "X-Jabong-Debug",
 		}
 		http.RegisterCustomHeader(appHeaderMap)
+		appConfig, err := appconfig.GetAddressServiceConfig()
+		if err != nil {
+			fmt.Println("err", err)
+		}
 		if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
 			fmt.Println("err  ", err)
 			logger.Error(err)

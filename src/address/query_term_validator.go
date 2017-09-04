@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -15,11 +16,11 @@ type QueryTermValidator struct {
 	id string
 }
 
-func (n *QueryTermValidatorQue) SetID(id string) {
+func (n *QueryTermValidator) SetID(id string) {
 	n.id = id
 }
 
-func (n QueryTermValidator) GetID(id string) (string, error) {
+func (n QueryTermValidator) GetID() (string, error) {
 	return n.id, nil
 }
 
@@ -27,12 +28,12 @@ func (n QueryTermValidator) Name() string {
 	return "QueryTermValidator"
 }
 
-func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkflowData, error) {
-	p := profiler.NewProfiler()
-	p.StartProfile("QueryTermValidator")
+func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
+	profiler := profiler.NewProfiler()
+	profiler.StartProfile("QueryTermValidator")
 
 	defer func() {
-		p.EndProfileWithMetric([]string{"QueryTermValidator_execute"})
+		profiler.EndProfileWithMetric([]string{"QueryTermValidator_execute"})
 	}()
 
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
@@ -47,7 +48,7 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.Workflow
 	rp, _ := io.IOData.Get(constants.Request)
 	appHTTPReq, _ := rp.(*utilHttp.Request)
 	httpReq := appHTTPReq.OriginalRequest
-	err := validateAndSetUrlParams(params, httpReq)
+	err := validateAndSetURLParams(params, httpReq)
 	if err != nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
@@ -57,12 +58,12 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.Workflow
 
 func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error {
 	var (
-		limit int = DEFAULT_LIMIT
-		offset int = DEFAULT_OFFSET
-		err error = nil 
+		limit  int   = DEFAULT_LIMIT
+		offset int   = DEFAULT_OFFSET
+		err    error = nil
 	)
 	if httpReq.FormValue("limit") != "" {
-		limit, err = utilHttp.GetIntParamFields(httpReq,"limit")
+		limit, err = utilHttp.GetIntParamFields(httpReq, "limit")
 		if err != nil {
 			return errors.New("Limit must be a valid number")
 		}
@@ -70,9 +71,9 @@ func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error
 	if limit > MAX_LIMIT {
 		limit = DEFAULT_LIMIT
 	}
-	params.QueryParams.Limit = limitkey string
+	params.QueryParams.Limit = limit
 	if httpReq.FormValue(URL_PARAM_OFFSET) != "" {
-		offset,err = utilHttp.GetIntParamFields(httpReq,URL_PARAM_OFFSET)
+		offset, err = utilHttp.GetIntParamFields(httpReq, URL_PARAM_OFFSET)
 		if err != nil {
 			return errors.New("Offset must be a number")
 		}
@@ -82,7 +83,7 @@ func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error
 		addressType := utilHttp.GetStringParamFields(httpReq, URL_PARAM_ADDRESS_TYPE)
 		res, err := validateAddressType(addressType)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Invalid address type. Possible types are all, billiing, shipping, other"),params.RequestContext)
+			logger.Error(fmt.Sprintf("Invalid address type. Possible types are all, billiing, shipping, other"), params.RequestContext)
 			return err
 		}
 		params.QueryParams.AddressType = res
@@ -90,8 +91,7 @@ func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error
 	return nil
 }
 
-
-func validateAddressType(ty interface{}) (addressType string,error) {
+func validateAddressType(ty interface{}) (addressType string, err error) {
 	str, ok := ty.(string)
 	if !ok {
 		return addressType, errors.New("Field Name 'addressType' is expected to be string")
@@ -107,4 +107,5 @@ func validateAddressType(ty interface{}) (addressType string,error) {
 	} else {
 		return addressType, errors.New("Invalid address type. Possible types are billing, shipping")
 	}
+	return addressType, err
 }
