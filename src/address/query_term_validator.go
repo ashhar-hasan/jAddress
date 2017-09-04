@@ -1,6 +1,7 @@
 package address
 
 import (
+	"common/appconstant"
 	"errors"
 	"fmt"
 	"net/http"
@@ -39,7 +40,7 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
 	logger.Info("QueryTermValidator_rc")
 	io.ExecContext.SetDebugMsg("Query Term Validator", "Query Term Validator-Execute")
-	p, _ := io.IOData.Get("QUERYPARAMS")
+	p, _ := io.IOData.Get(appconstant.QueryParams)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
 		logger.Error("QueryTermValidator. invalid type of params")
@@ -58,29 +59,29 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 
 func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error {
 	var (
-		limit  int   = DEFAULT_LIMIT
-		offset int   = DEFAULT_OFFSET
-		err    error = nil
+		limit  int = appconstant.DefaultLimit
+		offset int = appconstant.DefaultOffset
+		err    error
 	)
 	if httpReq.FormValue("limit") != "" {
-		limit, err = utilHttp.GetIntParamFields(httpReq, "limit")
+		limit, err = utilHttp.GetIntParamFields(httpReq, appconstant.UrlParamLimit)
 		if err != nil {
 			return errors.New("Limit must be a valid number")
 		}
 	}
-	if limit > MAX_LIMIT {
-		limit = DEFAULT_LIMIT
+	if limit > appconstant.MaxLimit {
+		limit = appconstant.DefaultLimit
 	}
 	params.QueryParams.Limit = limit
-	if httpReq.FormValue(URL_PARAM_OFFSET) != "" {
-		offset, err = utilHttp.GetIntParamFields(httpReq, URL_PARAM_OFFSET)
+	if httpReq.FormValue(appconstant.UrlParamOffset) != "" {
+		offset, err = utilHttp.GetIntParamFields(httpReq, appconstant.UrlParamOffset)
 		if err != nil {
 			return errors.New("Offset must be a number")
 		}
 	}
 	params.QueryParams.Offset = offset
-	if httpReq.FormValue(URL_PARAM_ADDRESS_TYPE) != "" {
-		addressType := utilHttp.GetStringParamFields(httpReq, URL_PARAM_ADDRESS_TYPE)
+	if httpReq.FormValue(appconstant.UrlParamAddressType) != "" {
+		addressType := utilHttp.GetStringParamFields(httpReq, appconstant.UrlParamAddressType)
 		res, err := validateAddressType(addressType)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Invalid address type. Possible types are all, billiing, shipping, other"), params.RequestContext)
@@ -96,14 +97,14 @@ func validateAddressType(ty interface{}) (addressType string, err error) {
 	if !ok {
 		return addressType, errors.New("Field Name 'addressType' is expected to be string")
 	}
-	if str == BILLING {
-		addressType = BILLING
-	} else if str == SHIPPING {
-		addressType = SHIPPING
-	} else if str == OTHER {
-		addressType = OTHER
-	} else if str == ALL {
-		addressType = ALL
+	if str == appconstant.Billing {
+		addressType = appconstant.Billing
+	} else if str == appconstant.Shipping {
+		addressType = appconstant.Shipping
+	} else if str == appconstant.Other {
+		addressType = appconstant.Other
+	} else if str == appconstant.All {
+		addressType = appconstant.All
 	} else {
 		return addressType, errors.New("Invalid address type. Possible types are billing, shipping")
 	}

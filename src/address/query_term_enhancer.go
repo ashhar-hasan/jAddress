@@ -1,14 +1,14 @@
 package address
 
 import (
+	"common/appconstant"
 	"fmt"
-
-	workflow "github.com/jabong/florest-core/src/core/common/orchestrator"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
 	utilHttp "github.com/jabong/florest-core/src/common/utils/http"
+	workflow "github.com/jabong/florest-core/src/core/common/orchestrator"
 )
 
 //QueryTermEnhancer parses, validates and sets default input parameters
@@ -43,15 +43,15 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	io.ExecContext.SetDebugMsg("Query Term Enhancer", "Query Term Enhancer Execute")
 	rp, _ := io.IOData.Get(constants.Request)
 	logger.Debug(fmt.Sprintf("Request : %v", rp), rc)
-	appHttpReq, pOk := rp.(*utilHttp.Request)
-	logger.Debug(fmt.Sprintf("HTTP Request : %+v", appHttpReq), rc)
+	appHTTPReq, pOk := rp.(*utilHttp.Request)
+	logger.Debug(fmt.Sprintf("HTTP Request : %+v", appHTTPReq), rc)
 
-	if !pOk || appHttpReq == nil {
+	if !pOk || appHTTPReq == nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
-	// httpReq := appHttpReq.OriginalRequest
-	sessionId, err := io.ExecContext.Get("SESSION_ID")
-	if sessionId == "" || err != nil {
+	// httpReq := appHTTPReq.OriginalRequest
+	sessionID, err := io.ExecContext.Get(appconstant.SessionID)
+	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
 	}
 
@@ -66,7 +66,7 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	params := RequestParams{}
 	// resource, _ := io.IOData.Get(constants.Resource)
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
-	if derr := io.IOData.Set("QUERYPARAMS", &params); derr != nil {
+	if derr := io.IOData.Set(appconstant.QueryParams, &params); derr != nil {
 		return io, derr
 	}
 	return io, nil
