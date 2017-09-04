@@ -10,24 +10,26 @@ import (
 	workflow "github.com/jabong/florest-core/src/core/common/orchestrator"
 )
 
+//ListAddressExecutor is responsible for retreiving the list of addresses
+//associated with a particular user
 type ListAddressExecutor struct {
 	id string
 }
 
-func (n *ListAddressExecutor) SetID(id string) {
-	n.id = id
+func (a *ListAddressExecutor) SetID(id string) {
+	a.id = id
 }
 
-func (n ListAddressExecutor) GetID() (id string, err error) {
-	return n.id, nil
+func (a ListAddressExecutor) GetID() (id string, err error) {
+	return a.id, nil
 }
 
 func (a ListAddressExecutor) Name() string {
 	return "ListAddressExecutor"
 }
 
+//Execute sets the retreived addresses of a user into the workflow data
 func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
-	//Business Logic
 	profiler := profiler.NewProfiler()
 	profiler.StartProfile("Address#ListAddressExecutor")
 
