@@ -17,15 +17,15 @@ type QueryTermValidator struct {
 	id string
 }
 
-func (n *QueryTermValidator) SetID(id string) {
-	n.id = id
+func (a *QueryTermValidator) SetID(id string) {
+	a.id = id
 }
 
-func (n QueryTermValidator) GetID() (string, error) {
-	return n.id, nil
+func (a QueryTermValidator) GetID() (string, error) {
+	return a.id, nil
 }
 
-func (n QueryTermValidator) Name() string {
+func (a QueryTermValidator) Name() string {
 	return "QueryTermValidator"
 }
 
@@ -59,8 +59,8 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 
 func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error {
 	var (
-		limit  int = appconstant.DefaultLimit
-		offset int = appconstant.DefaultOffset
+		limit  = appconstant.DefaultLimit
+		offset = appconstant.DefaultOffset
 		err    error
 	)
 	if httpReq.FormValue("limit") != "" {

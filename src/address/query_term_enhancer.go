@@ -16,12 +16,12 @@ type QueryTermEnhancer struct {
 	id string
 }
 
-func (n *QueryTermEnhancer) SetID(id string) {
-	n.id = id
+func (a *QueryTermEnhancer) SetID(id string) {
+	a.id = id
 }
 
-func (n QueryTermEnhancer) GetID() (id string, err error) {
-	return n.id, nil
+func (a QueryTermEnhancer) GetID() (id string, err error) {
+	return a.id, nil
 }
 
 func (a QueryTermEnhancer) Name() string {
