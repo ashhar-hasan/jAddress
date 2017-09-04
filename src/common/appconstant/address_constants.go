@@ -17,6 +17,11 @@ const (
 	UrlParamPostcode    = "postcode"
 	UrlParamAddressType = "type"
 )
+
+const (
+	MYSQLError string = "MysqlError"
+)
+
 const (
 	Billing       = "billing"
 	Shipping      = "shipping"
