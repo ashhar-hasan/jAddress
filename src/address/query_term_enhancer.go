@@ -66,7 +66,7 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	params := RequestParams{}
 	// resource, _ := io.IOData.Get(constants.Resource)
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
-	if derr := io.IOData.Set(appconstant.QueryParams, &params); derr != nil {
+	if derr := io.IOData.Set(appconstant.IoRequestParams, &params); derr != nil {
 		return io, derr
 	}
 	return io, nil

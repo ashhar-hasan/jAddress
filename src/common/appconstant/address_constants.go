@@ -2,8 +2,12 @@ package appconstant
 
 //URL Params for address service
 const (
-	SessionID   = "X-Jabong-SessionId"
-	QueryParams = "QUERYPARAMS"
+	SessionID        = "X-Jabong-SessionId"
+	IoQuery          = "QUERY"
+	IoAddressResult  = "RESULT"
+	IoLocalityResult = "RESULT"
+	IoHttpRequest    = "REQUEST"
+	IoRequestParams  = "QUERYPARAMS"
 )
 
 const (

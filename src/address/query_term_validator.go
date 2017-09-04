@@ -40,7 +40,7 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
 	logger.Info("QueryTermValidator_rc")
 	io.ExecContext.SetDebugMsg("Query Term Validator", "Query Term Validator-Execute")
-	p, _ := io.IOData.Get(appconstant.QueryParams)
+	p, _ := io.IOData.Get(appconstant.IoRequestParams)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
 		logger.Error("QueryTermValidator. invalid type of params")
