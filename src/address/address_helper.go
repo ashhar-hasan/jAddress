@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"strconv"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -130,4 +131,53 @@ func getDataFromServiceResponse(body []byte) (data []string, err error) {
 		}
 	}
 	return res, nil
+}
+
+func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) []DecryptedFields {
+	rc := params.RequestContext
+	var (
+		encryptedPhoneString    []string
+		encryptedAltPhoneString []string
+		dp, dap                 int64
+		err                     error
+	)
+	for _, v := range ef {
+		encryptedPhoneString = append(encryptedPhoneString, v.EncryptedPhone)
+		encryptedAltPhoneString = append(encryptedAltPhoneString, v.EncryptedAlternatePhone)
+	}
+	decryptedPhone := Decrypt(encryptedPhoneString, debug)
+	decryptedAltPhone := Decrypt(encryptedAltPhoneString, debug)
+	res := make([]DecryptedFields, 0)
+	for k, v := range ef {
+		if decryptedPhone[k] != "" {
+			dp, err = strconv.ParseInt(decryptedPhone[k], 10, 64)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Can not parse 'phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedPhone, v.Id, err), rc)
+			}
+		} else {
+			dp = 0
+		}
+
+		if decryptedAltPhone[k] != "" {
+			dap, err = strconv.ParseInt(decryptedAltPhone[k], 10, 64)
+			if err != nil {
+				logger.Error(fmt.Sprintf("Can not parse 'alternate phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedAlternatePhone, v.Id, err), rc)
+			}
+		} else {
+			dap = 0
+		}
+		res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
+	}
+	return res
+}
+
+func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]AddressResponse) {
+	val := (*address)
+	for k := range val {
+		temp := &val[k]
+		if temp.Id == ef[k].Id {
+			temp.Phone = ef[k].DecryptedPhone
+			temp.AlternatePhone = ef[k].DecryptedAlternatePhone
+		}
+	}
 }
