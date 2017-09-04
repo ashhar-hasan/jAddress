@@ -1,12 +1,31 @@
 package address
 
 import (
+	"common/appconfig"
 	"common/appconstant"
 	"fmt"
 
+	"github.com/jabong/florest-core/src/common/config"
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
 )
+
+var encryptServiceObj *EncryptionService
+
+//Initialise initialises Address Accessor
+func Initialise() {
+	var err error
+	c := config.GlobalAppConfig.ApplicationConfig
+	appConfig, _ := c.(*appconfig.AddressServiceConfig)
+	encConfHost := appConfig.EncryptionServiceConfig.Host
+	encConfReqTimeOut := appConfig.EncryptionServiceConfig.ReqTimeout
+	encryptServiceObj, err = InitEncryptionService(encConfHost, encConfReqTimeOut)
+	if err != nil {
+		panic("Failed to initialise Encryption Service" + err.Error())
+	}
+
+	logger.Info(fmt.Sprintf("Address Service Accessor Initialize"))
+}
 
 func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
 	prof := profiler.NewProfiler()
@@ -38,32 +57,6 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 			return a, err
 		}
 	}
-	//Filter Result as per given limit and offset [Start]
-	// start := params.QueryParams.Offset
-	// end := params.QueryParams.Offset + params.QueryParams.Limit
-	// addressFiltered := make([]AddressResponse, 0)
-
-	// if params.QueryParams.AddressType == ALL || params.QueryParams.AddressType == "" {
-	// 	if params.QueryParams.Limit != 0 {
-	// 		addressFiltered = addressResult //[start:end]
-	// 	}
-	// } else {
-	// 	for _, v := range addressResult {
-	// 		if v.AddressType == params.QueryParams.AddressType {
-	// 			addressFiltered = append(addressFiltered, v)
-	// 		}
-	// 	}
-	// }
-	// if end > len(addressFiltered) {
-	// 	end = len(addressFiltered)
-	// }
-	// if start > end {
-	// 	start = end
-	// }
-	// addressResult = addressFiltered[start:end]
-
-	// //[closed]
-
 	a.AddressList = addressResult
 	a.Summery = AddressDetails{Count: len(addressResult), Type: addressType}
 	return a, nil

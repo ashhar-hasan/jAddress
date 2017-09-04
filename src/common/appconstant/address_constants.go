@@ -22,6 +22,18 @@ const (
 	MYSQLError string = "MysqlError"
 )
 
+//Redis constants
+const (
+	AddressCacheKey string = "address_list_key_%s"
+)
+
+//Encryption service end points
+const (
+	EncryptEndpoint = "/encryption/v1/encrypt/"
+	DecryptEndpoint = "/encryption/v1/decrypt/"
+	BatchSize       = float64(50)
+)
+
 const (
 	Billing       = "billing"
 	Shipping      = "shipping"
