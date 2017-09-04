@@ -37,6 +37,10 @@
         "MaxOpenCon": 1000,
         "MaxIdleCon": 5
       }
+    },
+    "EncryptionServiceConfig": {
+      "Host": "ENCRYPTION_SERVICE_HOST",
+      "ReqTimeout": "2000"
     }
   }
 }

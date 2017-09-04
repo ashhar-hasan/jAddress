@@ -10,12 +10,20 @@ import (
 )
 
 type AddressServiceConfig struct {
-	MySqlConfig *MySqlConfig
+	MySqlConfig             *MySqlConfig
+	EncryptionServiceConfig *EncryptionServiceConfig
 }
 
 type MySqlConfig struct {
 	MySqlMaster *sqldb.SDBConfig `json:"Master"`
 	MySqlSlave  *sqldb.SDBConfig `json:"Slave"`
+}
+
+type EncryptionServiceConfig struct {
+	ReqTimeout      string
+	Endpoint        string
+	EndpointDecrypt string
+	Host            string
 }
 
 func GetAddressServiceConfig() (*AddressServiceConfig, error) {
