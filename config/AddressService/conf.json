@@ -43,11 +43,13 @@
       "ReqTimeout": "2000"
     },
     "Cache": {
-      "ConnStr": "redis-server:6350",
-      "Cluster": false,
-      "BucketHashes": [
-        "configHash"
-      ]
+      "Redis": {
+        "ConnStr": "localhost:6379",
+        "Cluster": false,
+        "BucketHashes": [
+          "configHash"
+        ]
+      }
     }
   }
 }
