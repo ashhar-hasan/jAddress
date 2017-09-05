@@ -36,7 +36,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	}
 	limits := strconv.Itoa(params.QueryParams.Limit)
 	offsets := strconv.Itoa(params.QueryParams.Offset)
-	sql = sql + `limit ` + limits + ` offset ` + offsets
+	sql = sql + ` limit ` + limits + ` offset ` + offsets
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "SelectAddressSql", Value: sql})
 
 	rows, err := db.Query(sql)
