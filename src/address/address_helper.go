@@ -260,3 +260,18 @@ func saveDataInCache(id string, ty string, value interface{}) error {
 
 	return nil
 }
+
+//invalidateCache invalidate cache key
+func invalidateCache(key string) error {
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+
+	err := cacheObj.Delete(key)
+	if err != nil {
+		return err
+	}
+	return nil
+}
