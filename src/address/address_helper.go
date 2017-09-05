@@ -215,7 +215,7 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 	}
 
 	var addressList []AddressResponse
-	data := result.Value.([]byte)
+	data := result.Value.(string)
 	byt := []byte(data)
 	if err := json.Unmarshal(byt, &addressList); err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache.UnmarshalErr", Value: err.Error()})
