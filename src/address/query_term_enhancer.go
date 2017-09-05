@@ -64,10 +64,34 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 
 	//create new request params
 	params := RequestParams{}
-	// resource, _ := io.IOData.Get(constants.Resource)
+
+	updateParamsWithBuckets(&params, io)
+	updateParamsWithRequestContext(&params, io)
+
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
 	if derr := io.IOData.Set(appconstant.IoRequestParams, &params); derr != nil {
 		return io, derr
 	}
 	return io, nil
+}
+
+//updateParamsWithBuckets updates buckets to params
+func updateParamsWithBuckets(params *RequestParams, io workflow.WorkFlowData) {
+	rc, _ := io.ExecContext.Get(constants.RequestContext)
+	bucketMap, err := io.ExecContext.GetBuckets()
+	if err != nil { //no need to return error as its not fatal issue
+		logger.Warning(fmt.Sprintf("err in retrieving buckets : %v", err), rc)
+	}
+	params.Buckets = bucketMap
+}
+
+//updateParamsWithRequestContext updates request context to params
+func updateParamsWithRequestContext(params *RequestParams, io workflow.WorkFlowData) {
+	rc, err := io.ExecContext.Get(constants.RequestContext)
+	if err != nil { //no need to return error as its not fatal issue
+		logger.Info(fmt.Sprintf("err in retrieving request context : %v", err), rc)
+	}
+	if v, ok := rc.(utilHttp.RequestContext); ok {
+		params.RequestContext = v
+	}
 }
