@@ -2,6 +2,7 @@ package address
 
 import (
 	"common/appconstant"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -20,8 +21,8 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 
 	rc := params.RequestContext
 	customerId := rc.UserID
-	if customerId == nil {
-		return nil, "CustomerID not present"
+	if customerId == "" {
+		return nil, errors.New("CustomerID not present")
 	}
 
 	sql := `SELECT CAST(ca.id_customer_address as SIGNED INT) as id,ca.first_name, ca.last_name, CAST(ca.phone as CHAR), CAST(IFNULL(ca.alternate_phone, "") as CHAR), ca.address1, ca.address2, ca.city, CAST(ca.is_default_billing as SIGNED INT), CAST(ca.is_default_shipping as SIGNED INT), r.name AS region, CAST(r.id_customer_address_region as SIGNED INT), CAST(postcode as SIGNED INT), CAST(country.id_country as SIGNED INT) as country, CAST(adi.sms_opt as SIGNED INT), CAST(IFNULL(ca.address_type, 0) as SIGNED INT)
