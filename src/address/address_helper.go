@@ -11,6 +11,7 @@ import (
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
 	utilHttp "github.com/jabong/florest-core/src/common/utils/http"
+	"github.com/jabong/florest-core/src/components/cache"
 	workflow "github.com/jabong/florest-core/src/core/common/orchestrator"
 )
 
@@ -180,4 +181,82 @@ func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]Addr
 			temp.AlternatePhone = ef[k].DecryptedAlternatePhone
 		}
 	}
+}
+
+//GetAddressListCacheKey return the cache key to get/set user addresses
+func GetAddressListCacheKey(userID string) string {
+	return fmt.Sprintf(appconstant.AddressCacheKey, userID)
+}
+
+//getAddressListFromCache get user's address list from cache
+func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug) ([]AddressResponse, error) {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#getAddressListFromCache")
+
+	defer func() {
+		p.EndProfileWithMetric([]string{"AddressHelper#getAddressListFromCache"})
+	}()
+
+	var address []AddressResponse
+
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+	addressListCacheKey := GetAddressListCacheKey(userId)
+
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:addressListCacheKey", Value: addressListCacheKey})
+	result, err := cacheObj.Get(addressListCacheKey, false, false)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error while getting address list from cache %s", err))
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting address list from cache::" + err.Error()})
+		return address, err
+	}
+
+	var addressList []AddressResponse
+	data := result.Value.([]byte)
+	byt := []byte(data)
+	if err := json.Unmarshal(byt, &addressList); err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache.UnmarshalErr", Value: err.Error()})
+		return address, err
+	}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Result", Value: fmt.Sprintf("%+v", addressList)})
+
+	return addressList, nil
+}
+
+//saveDataInCache save data in cache
+func saveDataInCache(id string, ty string, value interface{}) error {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#getAddressListFromCache")
+
+	defer func() {
+		p.EndProfileWithMetric([]string{"AddressHelper#getAddressListFromCache"})
+	}()
+
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+
+	var cacheKey string
+	if ty == "address" {
+		cacheKey = GetAddressListCacheKey(id)
+	} else if ty == "locality" {
+		cacheKey = ""
+	}
+	str, _ := json.Marshal(value)
+
+	item := cache.Item{}
+	item.Key = cacheKey
+	item.Value = string(str)
+
+	err := cacheObj.Set(item, false, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

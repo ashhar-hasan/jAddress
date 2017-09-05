@@ -6,17 +6,19 @@ import (
 
 	"github.com/jabong/florest-core/src/common/config"
 	"github.com/jabong/florest-core/src/common/logger"
+	"github.com/jabong/florest-core/src/components/cache"
 	"github.com/jabong/florest-core/src/components/sqldb"
 )
 
 type AddressServiceConfig struct {
-	MySqlConfig             *MySqlConfig
-	EncryptionServiceConfig *EncryptionServiceConfig
+	MySqlConfig             *MySqlConfig             `json:"MySqlConfig",omitempty`
+	EncryptionServiceConfig *EncryptionServiceConfig `json:"EncryptionServiceConfig,omitempty"`
+	Cache                   *CacheConf               `json:"Cache,omitempty"`
 }
 
 type MySqlConfig struct {
-	MySqlMaster *sqldb.SDBConfig `json:"Master"`
-	MySqlSlave  *sqldb.SDBConfig `json:"Slave"`
+	MySqlMaster *sqldb.SDBConfig `json:"Master,omitempty"`
+	MySqlSlave  *sqldb.SDBConfig `json:"Slave,omitempty"`
 }
 
 type EncryptionServiceConfig struct {
@@ -24,6 +26,11 @@ type EncryptionServiceConfig struct {
 	Endpoint        string
 	EndpointDecrypt string
 	Host            string
+}
+
+type CacheConf struct {
+	Redis        *cache.Config `json:"Redis,omitempty"`
+	RedisCluster *cache.Config `json:"RedisCluster,omitempty"`
 }
 
 func GetAddressServiceConfig() (*AddressServiceConfig, error) {

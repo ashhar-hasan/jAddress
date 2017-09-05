@@ -8,6 +8,7 @@ import (
 
 	"github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/utils/http"
+	"github.com/jabong/florest-core/src/components/cache"
 	"github.com/jabong/florest-core/src/components/sqldb"
 	"github.com/jabong/florest-core/src/core/service"
 )
@@ -53,6 +54,10 @@ func registerInitFunc() {
 		}
 		if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
 			fmt.Println("err  ", err)
+			logger.Error(err)
+		}
+		// initialize redis
+		if err = cache.Set(cache.Redis, appConfig.Cache.Redis, new(cache.RedisClientAdapter)); err != nil {
 			logger.Error(err)
 		}
 	})

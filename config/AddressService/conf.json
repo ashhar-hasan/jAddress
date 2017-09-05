@@ -41,6 +41,13 @@
     "EncryptionServiceConfig": {
       "Host": "ENCRYPTION_SERVICE_HOST",
       "ReqTimeout": "2000"
+    },
+    "Cache": {
+      "ConnStr": "redis-server:6350",
+      "Cluster": false,
+      "BucketHashes": [
+        "configHash"
+      ]
     }
   }
 }
