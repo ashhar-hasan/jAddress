@@ -26,10 +26,10 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	}
 
 	sql := `SELECT CAST(ca.id_customer_address as SIGNED INT) as id,ca.first_name, ca.last_name, CAST(ca.phone as CHAR), CAST(IFNULL(ca.alternate_phone, "") as CHAR), ca.address1, ca.address2, ca.city, CAST(ca.is_default_billing as SIGNED INT), CAST(ca.is_default_shipping as SIGNED INT), r.name AS region, CAST(r.id_customer_address_region as SIGNED INT), CAST(postcode as SIGNED INT), CAST(country.id_country as SIGNED INT) as country, CAST(adi.sms_opt as SIGNED INT), CAST(IFNULL(ca.address_type, 0) as SIGNED INT)
-			FROM customer_address ca JOIN country ON fk_country = id_country 
-			LEFT JOIN customer_address_region r ON fk_customer_address_region=r.id_customer_address_region
-			LEFT JOIN customer_additional_info adi ON adi.fk_customer=ca.fk_customer
-			WHERE ca.fk_customer=` + customerId
+            FROM customer_address ca JOIN country ON fk_country = id_country 
+            LEFT JOIN customer_address_region r ON fk_customer_address_region=r.id_customer_address_region
+            LEFT JOIN customer_additional_info adi ON adi.fk_customer=ca.fk_customer
+            WHERE ca.fk_customer=` + customerId
 
 	if addressId != "" {
 		sql = sql + ` AND id_customer_address = ` + addressId
@@ -40,10 +40,11 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "SelectAddressSql", Value: sql})
 
 	rows, err := db.Query(sql)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address"))
-		fmt.Println("Mysql Error while getting data from customer_address table", err)
-		return nil, err
+	e := err.(*sqldb.SDBError)
+	if e != nil {
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQLError, e.Error(), "customer_address"))
+		fmt.Println("Mysql Error while getting data from customer_address table", e.Error())
+		return nil, e
 	}
 
 	addresses := make([]AddressResponse, 0)
