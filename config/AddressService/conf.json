@@ -18,8 +18,8 @@
   "ApplicationConfig": {
     "MySqlConfig": {
       "Master": {
-        "Username": "ashhar",
-        "Password": "jb/@@$hu0711",
+        "Username": "root",
+        "Password": "rishabh",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",
@@ -28,8 +28,8 @@
         "MaxIdleCon": 5
       },
       "Slave": {
-        "Username": "ashhar",
-        "Password": "jb/@@$hu0711",
+        "Username": "root",
+        "Password": "rishabh",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",

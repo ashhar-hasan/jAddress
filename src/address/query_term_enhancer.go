@@ -54,7 +54,10 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
 	}
-
+	userID, rerr := io.ExecContext.Get(appconstant.UserID)
+	if userID == "" || rerr != nil {
+		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "UserId must be provided in request header"}
+	}
 	m, _ := io.IOData.Get(constants.ResponseMetaData)
 	md, _ := m.(*utilHttp.ResponseMetaData)
 	if md == nil {
