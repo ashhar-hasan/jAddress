@@ -21,6 +21,7 @@ func main() {
 	registerErrors()
 	registerAllApis()
 	registerInitFunc()
+	overrideConfByEnvVariables()
 	webserver.Start()
 }
 
@@ -61,4 +62,8 @@ func registerInitFunc() {
 			logger.Error(err)
 		}
 	})
+}
+
+func overrideConfByEnvVariables() {
+	service.RegisterGlobalEnvUpdateMap(appconfig.MapEnvVariables())
 }
