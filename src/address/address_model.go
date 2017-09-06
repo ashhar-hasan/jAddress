@@ -52,10 +52,9 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 
 	for rows.Next() {
 		var (
-			fname, lname, address1, address2, city, region, phone, altPhone string
-			id, isBilling, isShipping, customerAddressRegionId, country     uint32
-			postcode, isOffice                                              int
-			smsOpt                                                          []byte
+			fname, lname, address1, address2, city, region, phone, altPhone, smsOpt []byte
+			id, isBilling, isShipping, customerAddressRegionId, country             uint32
+			postcode, isOffice                                                      int
 		)
 		ad := AddressResponse{}
 		encFields := EncryptedFields{}
@@ -67,12 +66,12 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		}
 
 		ad.Id = id
-		ad.FirstName = fname
-		ad.LastName = lname
-		ad.Address1 = address1
-		ad.Address2 = address2
-		ad.City = city
-		ad.RegionName = region
+		ad.FirstName = string(fname)
+		ad.LastName = string(lname)
+		ad.Address1 = string(address1)
+		ad.Address2 = string(address2)
+		ad.City = string(city)
+		ad.RegionName = string(region)
 		ad.AddressRegion = customerAddressRegionId
 		ad.PostCode = postcode
 		ad.Country = country
@@ -95,8 +94,8 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		ad.SmsOpt = sms
 
 		encFields.Id = id
-		encFields.EncryptedPhone = phone
-		encFields.EncryptedAlternatePhone = altPhone
+		encFields.EncryptedPhone = string(phone)
+		encFields.EncryptedAlternatePhone = string(altPhone)
 		encryptedFields = append(encryptedFields, encFields)
 
 		addresses = append(addresses, ad)
