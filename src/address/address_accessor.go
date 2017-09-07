@@ -58,6 +58,28 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 			return a, err
 		}
 	}
+	start := params.QueryParams.Offset
+	end := params.QueryParams.Offset + params.QueryParams.Limit
+	addressFiltered := make([]AddressResponse, 0)
+
+	if params.QueryParams.AddressType == "all" || params.QueryParams.AddressType == "" {
+		if params.QueryParams.Limit != 0 {
+			addressFiltered = addressResult //[start:end]
+		}
+	} else {
+		for _, v := range addressResult {
+			if v.AddressType == params.QueryParams.AddressType {
+				addressFiltered = append(addressFiltered, v)
+			}
+		}
+	}
+	if end > len(addressFiltered) {
+		end = len(addressFiltered)
+	}
+	if start > end {
+		start = end
+	}
+	addressResult = addressFiltered[start:end]
 	a.AddressList = addressResult
 	a.Summery = AddressDetails{Count: len(addressResult), Type: addressType}
 	return a, nil
