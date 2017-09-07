@@ -34,6 +34,22 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	if addressId != "" {
 		sql = sql + ` AND id_customer_address = ` + addressId
 	}
+	fmt.Println(params.QueryParams.AddressType)
+	if params.QueryParams.AddressType != "" {
+		if params.QueryParams.AddressType == "billing" {
+			sql = sql + ` AND is_default_billing = 1 `
+		} else if params.QueryParams.AddressType == "shipping" {
+			sql = sql + ` AND is_default_shipping = 1 `
+		} else if params.QueryParams.AddressType == "others" {
+			sql = sql + ` AND is_default_shipping=0 AND is_default_billing=0 `
+		} else if params.QueryParams.AddressType == "all" {
+
+		} else {
+			return nil, errors.New("Invalid Address Type")
+		}
+
+	}
+
 	limits := strconv.Itoa(params.QueryParams.Limit)
 	offsets := strconv.Itoa(params.QueryParams.Offset)
 	sql = sql + ` limit ` + limits + ` offset ` + offsets
