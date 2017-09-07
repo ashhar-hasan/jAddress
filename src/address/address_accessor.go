@@ -28,6 +28,7 @@ func Initialise() {
 }
 
 func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	Initialise()
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_accessor-GetAddressList")
 	defer func() {

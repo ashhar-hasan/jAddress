@@ -11,6 +11,12 @@
     "Enabled": false,
     "MetricsServer": "datadog:8065"
   },
+  "HttpConfig": {
+    "MaxConn": 200,
+    "MaxIdleConns": 2,
+    "ResponseHeaderTimeout": 30,
+    "DisableKeepAlives": false
+  },
   "Performance": {
     "UseCorePercentage": 100,
     "GCPercentage": 1000
@@ -18,8 +24,8 @@
   "ApplicationConfig": {
     "MySqlConfig": {
       "Master": {
-        "Username": "root",
-        "Password": "rishabh",
+        "Username": "ashhar",
+        "Password": "jb/@@$hu0711",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",
@@ -28,8 +34,8 @@
         "MaxIdleCon": 5
       },
       "Slave": {
-        "Username": "root",
-        "Password": "rishabh",
+        "Username": "ashhar",
+        "Password": "jb/@@$hu0711",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",
@@ -39,7 +45,7 @@
       }
     },
     "EncryptionServiceConfig": {
-      "Host": "ENCRYPTION_SERVICE_HOST",
+      "Host": "http://180.179.143.72:8098",
       "ReqTimeout": "2000"
     },
     "Cache": {
