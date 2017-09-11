@@ -38,7 +38,7 @@ func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	err := listAddressWorkflow.AddExecutionNode(queryTermEnhancer)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
-		err = nil
+
 	}
 
 	queryTermValidator := new(QueryTermValidator)
@@ -46,27 +46,27 @@ func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	err = listAddressWorkflow.AddExecutionNode(queryTermValidator)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
-		err = nil
+
 	}
 	listAddressExecutor := new(ListAddressExecutor)
 	listAddressExecutor.SetID("3")
 	err = listAddressWorkflow.AddExecutionNode(listAddressExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
-		err = nil
+
 	}
 
 	//Add the connection between the nodes
 	err = listAddressWorkflow.AddConnection(queryTermEnhancer, queryTermValidator)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
-		err = nil
+
 	}
 
 	err = listAddressWorkflow.AddConnection(queryTermValidator, listAddressExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
-		err = nil
+
 	}
 
 	//Set start node for the search workflow
@@ -76,7 +76,6 @@ func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	addressOrchestrator.Create(listAddressWorkflow)
 
 	logger.Info(addressOrchestrator.String())
-	logger.Info("Address Pipeline Created")
 	logger.Info("Address Pipeline Created")
 	return *addressOrchestrator
 }
