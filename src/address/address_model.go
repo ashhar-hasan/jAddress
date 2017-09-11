@@ -25,7 +25,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		return nil, errors.New("CustomerID not present")
 	}
 
-	sql := `SELECT CAST(ca.id_customer_address as SIGNED INT) as id,ca.first_name, ca.last_name, CAST(ca.phone as CHAR), CAST(IFNULL(ca.alternate_phone, "") as CHAR), ca.address1, ca.address2, ca.city, CAST(ca.is_default_billing as SIGNED INT), CAST(ca.is_default_shipping as SIGNED INT), r.name AS region, CAST(r.id_customer_address_region as SIGNED INT), CAST(postcode as SIGNED INT), CAST(country.id_country as SIGNED INT) as country, CAST(adi.sms_opt as SIGNED INT), CAST(IFNULL(ca.address_type, 0) as SIGNED INT)
+	sql := `SELECT DISTINCT(CAST(ca.id_customer_address as SIGNED INT)) as id,ca.first_name, ca.last_name, CAST(ca.phone as CHAR), CAST(IFNULL(ca.alternate_phone, "") as CHAR), ca.address1, ca.address2, ca.city, CAST(ca.is_default_billing as SIGNED INT), CAST(ca.is_default_shipping as SIGNED INT), r.name AS region, CAST(r.id_customer_address_region as SIGNED INT), CAST(postcode as SIGNED INT), CAST(country.id_country as SIGNED INT) as country, CAST(adi.sms_opt as SIGNED INT), CAST(IFNULL(ca.address_type, 0) as SIGNED INT)
             FROM customer_address ca JOIN country ON fk_country = id_country 
             LEFT JOIN customer_address_region r ON fk_customer_address_region=r.id_customer_address_region
             LEFT JOIN customer_additional_info adi ON adi.fk_customer=ca.fk_customer
