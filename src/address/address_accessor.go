@@ -3,6 +3,7 @@ package address
 import (
 	"common/appconfig"
 	"common/appconstant"
+	"errors"
 	"fmt"
 
 	"github.com/jabong/florest-core/src/common/config"
@@ -82,5 +83,55 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	addressResult = addressFiltered[start:end]
 	a.AddressList = addressResult
 	a.Summery = AddressDetails{Count: len(addressResult), Type: addressType}
+	return a, nil
+}
+
+func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-UpdateAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-UpdateAddress"})
+	}()
+
+	rc := params.RequestContext
+
+	cacheErr := udpateAddressInCache(params, debugInfo)
+	if cacheErr != nil {
+		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
+		err := invalidateCache(cacheKey)
+		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+	}
+	go updateAddressInDb(params, cacheErr, debugInfo)
+	a := new(AddressResult)
+	return a, nil
+}
+
+func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-AddAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-AddAddress"})
+	}()
+	a := new(AddressResult)
+
+	rc := params.RequestContext
+	userId := rc.UserID
+	addressData := params.QueryParams.Address
+
+	lastInsertedId, err := addAddress(userId, addressData, debugInfo)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error in adding new address in db - %v", err), rc)
+		return a, errors.New("Some error occured while adding new address")
+	}
+	id := fmt.Sprintf("%d", lastInsertedId)
+	addressResult, err := getAddressList(params, id, debugInfo)
+	if err != nil {
+		logger.Warning(fmt.Sprintf("Some error occured while getting address details after adding new address"), rc)
+	}
+	a.AddressList = addressResult
+
+	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+
 	return a, nil
 }

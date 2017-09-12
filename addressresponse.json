@@ -1,0 +1,40 @@
+"data": {
+    "address1": "dhkshfksf",
+    "address2": "Hint CWK",
+    "address_type": "0",
+    "city": "Ghaziabad",
+    "created_at": "2017-08-03 19:17:40",
+    "first_name": "ndbsjssjk",
+    "fk_country": "105",
+    "fk_customer": "2627",
+    "fk_customer_address_region": "49",
+    "id_customer_address": "18904",
+    "is_default_billing": "1",
+    "is_default_shipping": "1",
+    "last_name": "",
+    "phone": "+911762783188",
+    "alternate_phone": "",
+    "postcode": "201001",
+    "region_name": "Uttar Pradesh",
+    "sms_opt": "1",
+    "updated_at": "2017-08-29 13:11:16"
+}
+
+
+{
+    "id": 8828125,
+    "firstname": "Dr NitikaSharma",
+    "lastname": "",
+    "address1": "5A Adarsh Nagar Street no 1 Ram Tirath road ",
+    "address2": "",
+    "postcode": 143001,
+    "city": "Amritsar",
+    "region_name": "Punjab",
+    "fk_address_region": 44,
+    "fk_country": 105,
+    "phone": "8988989",
+    "alternate_phone": "0",
+    "address_type": "other",
+    "sms_opt": 1,
+    "is_office": 0
+}

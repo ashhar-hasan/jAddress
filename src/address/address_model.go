@@ -113,3 +113,90 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	}
 	return addresses, nil
 }
+
+func updateAddressInDb(params *RequestParams, cacheError error, debugInfo *Debug) (err error) {
+	db, err := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_model-updateAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_model-updateAddress"})
+	}()
+
+	rc := params.RequestContext
+	userId := rc.UserID
+	a := params.QueryParams.Address
+	var updateTypeField, query string
+	updateTypeField = getAddressTypeSql(a.AddressType)
+	if params.QueryParams.Address.Req == appconstant.UpdateType {
+		query = `UPDATE customer_address SET ` + updateTypeField + ` WHERE fk_customer = ? and id_customer_address= ?`
+		logger.Info(fmt.Sprintf("Update Address Type query: %s", query), rc)
+	} else {
+		sql := `UPDATE customer_address SET first_name = '%s', address1 = '%s', phone = '%s', city = '%s', postcode = '%d', fk_customer_address_region = '%d', fk_country = '%d' , address_type = '%d'`
+		if updateTypeField != "" {
+			sql = sql + `, ` + updateTypeField
+		}
+		if a.LastName != "" {
+			sql = sql + `, last_name = '` + a.LastName + `'`
+		}
+		if a.Address2 != "" {
+			sql = sql + `, address2 = '` + a.Address2 + `'`
+		}
+		if a.AlternatePhone != 0 {
+			sql = sql + `, alternate_phone = '` + a.EncryptedAlternatePhone + `'`
+		}
+
+		sql = sql + ` WHERE fk_customer = ? and id_customer_address= ?` // + fmt.Sprintf("%d", uint32(a.Id))
+
+		customerAddressRegion, countryId, err := getRegionId(a.AddressRegion, debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error while getting Region Info of the user"), rc)
+		}
+		query = fmt.Sprintf(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.City, a.PostCode, customerAddressRegion, countryId, a.IsOffice)
+		logger.Info(fmt.Sprintf("Update Address query: %s", query), rc)
+	}
+
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateAddressInDb:Sql", Value: query})
+
+	var err1, err2 error
+	txObj, terr := db.GetTxnObj()
+	if terr == nil {
+		_, err1 = txObj.Exec(query, userId, a.Id)
+		if err1 != nil {
+			logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", MYSQLError, err1.Error(), "customer_address"), rc)
+		}
+
+		if params.QueryParams.Address.Req != UPDATE_TYPE {
+			updateSmsOptSql := getUpdateSmsOptOfUserQuery()
+			_, err2 = executeTransactionalQuery(txObj, "Update-customer_additional_info", updateSmsOptSql, a.SmsOpt, userId)
+			if err2 != nil {
+				logger.Error(fmt.Sprintf("Error while updating customer_additional_info for sms_opt |%s|%s", MYSQLError, err2.Error()), rc)
+			}
+		}
+
+		if err1 != nil || err2 != nil {
+			txObj.RollbackTransaction()
+			key := GetAddressListCacheKey(userId)
+			invalidateCache(key)
+			//updateAddressListInCache(params, fmt.Sprintf("%s",a.Id), debugInfo) //update address list in cache
+		}
+		err = txObj.CommitTransaction()
+		if err != nil {
+			txObj.RollbackTransaction()
+			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "Update::CommitTransactionError:", Value: err.Error()})
+			return err
+		}
+	} else {
+		logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", MYSQLError, terr), rc)
+	}
+	return nil
+}
+
+func getAddressTypeSql(ty string) string {
+	var updateTypeField string
+	if ty == appconstant.Billing {
+		updateTypeField = ` is_default_billing = 1, is_default_shipping = 0`
+	} else if ty == appconstant.Shipping {
+		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
+	}
+	return updateTypeField
+}
