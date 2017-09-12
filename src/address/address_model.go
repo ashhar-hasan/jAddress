@@ -114,7 +114,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	return addresses, nil
 }
 
-func updateAddressInDb(params *RequestParams, cacheError error, debugInfo *Debug) (err error) {
+func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_model-updateAddress")
@@ -162,31 +162,31 @@ func updateAddressInDb(params *RequestParams, cacheError error, debugInfo *Debug
 	if terr == nil {
 		_, err1 = txObj.Exec(query, userId, a.Id)
 		if err1 != nil {
-			logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", MYSQLError, err1.Error(), "customer_address"), rc)
+			logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"), rc)
 		}
 
-		if params.QueryParams.Address.Req != UPDATE_TYPE {
+		if params.QueryParams.Address.Req != appconstant.UpdateType {
 			updateSmsOptSql := getUpdateSmsOptOfUserQuery()
-			_, err2 = executeTransactionalQuery(txObj, "Update-customer_additional_info", updateSmsOptSql, a.SmsOpt, userId)
+			_, err2 = txObj.Exec(updateSmsOptSql, a.SmsOpt, userId)
 			if err2 != nil {
-				logger.Error(fmt.Sprintf("Error while updating customer_additional_info for sms_opt |%s|%s", MYSQLError, err2.Error()), rc)
+				logger.Error(fmt.Sprintf("Error while updating customer_additional_info for sms_opt |%s|%s", appconstant.MYSQLError, err2.Error()), rc)
 			}
 		}
 
 		if err1 != nil || err2 != nil {
-			txObj.RollbackTransaction()
+			txObj.Rollback()
 			key := GetAddressListCacheKey(userId)
 			invalidateCache(key)
 			//updateAddressListInCache(params, fmt.Sprintf("%s",a.Id), debugInfo) //update address list in cache
 		}
-		err = txObj.CommitTransaction()
+		err = txObj.Commit()
 		if err != nil {
-			txObj.RollbackTransaction()
+			txObj.Rollback()
 			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "Update::CommitTransactionError:", Value: err.Error()})
 			return err
 		}
 	} else {
-		logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", MYSQLError, terr), rc)
+		logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", appconstant.MYSQLError, terr), rc)
 	}
 	return nil
 }
@@ -199,4 +199,39 @@ func getAddressTypeSql(ty string) string {
 		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
 	}
 	return updateTypeField
+}
+
+func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, err error) {
+
+	db, err := sqldb.Get("mysdb")
+
+	sql := `Select CAST(id_customer_address_region as SIGNED INT), CAST(fk_country as SIGNED INT) from customer_address_region where id_customer_address_region = ?` //+ fmt.Sprintf("%d", regionId)
+
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
+	rows, err := db.Query(sql, regionId)
+
+	if err != nil {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address_region"))
+		return 0, 0, err
+	}
+	var rid uint32
+	flag := false
+	for rows.Next() {
+		flag = true
+		err = rows.Scan(&rid, &countryId)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Mysql Row Error while getting row from customer_address_region table", err))
+			return 0, 0, err
+		}
+	}
+	if flag == false {
+		return 0, 0, errors.New("Invalid address region Id is given")
+	}
+	return rid, countryId, nil
+}
+
+func getUpdateSmsOptOfUserQuery() string {
+	sql := `UPDATE customer_additional_info SET sms_opt=? WHERE fk_customer=?`
+	return sql
 }

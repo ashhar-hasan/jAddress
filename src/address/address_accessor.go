@@ -101,7 +101,7 @@ func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		err := invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 	}
-	go updateAddressInDb(params, cacheErr, debugInfo)
+	go updateAddressInDb(params, debugInfo)
 	a := new(AddressResult)
 	return a, nil
 }

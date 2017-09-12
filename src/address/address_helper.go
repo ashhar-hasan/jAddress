@@ -3,6 +3,7 @@ package address
 import (
 	"common/appconstant"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/url"
@@ -272,6 +273,81 @@ func invalidateCache(key string) error {
 	err := cacheObj.Delete(key)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+//udpateAddressInCache update/edit user's particular address in cache
+func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_helper-updateAddressInCache")
+
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_helper-updateAddressInCache"})
+	}()
+
+	rc := params.RequestContext
+	userId := rc.UserID
+	address := params.QueryParams.Address
+
+	addressList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error while fetching address list from Cache"), rc)
+		return errors.New("Error while fetching address list from Cache")
+	}
+
+	var (
+		index int
+		flag  bool
+	)
+	for key, value := range addressList {
+		if value.Id == address.Id {
+			index = key
+			flag = true
+			break
+		}
+	}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:index", Value: fmt.Sprintf("%d", index)})
+	if flag {
+		if params.QueryParams.Address.Req == appconstant.UpdateType {
+			addressList[index].AddressType = params.QueryParams.Address.AddressType
+		} else {
+			addressList[index].FirstName = address.FirstName
+			addressList[index].Phone = address.Phone
+			addressList[index].Address1 = address.Address1
+			addressList[index].City = address.City
+			addressList[index].AddressRegion = address.AddressRegion
+			addressList[index].PostCode = address.PostCode
+			addressList[index].IsOffice = address.IsOffice
+			addressList[index].SmsOpt = address.SmsOpt
+
+			if address.Country != 0 {
+				addressList[index].Country = address.Country
+			}
+			if address.RegionName != "" {
+				addressList[index].RegionName = address.RegionName
+			}
+			if address.LastName != "" {
+				addressList[index].LastName = address.LastName
+			}
+			if address.Address2 != "" {
+				addressList[index].Address2 = address.Address2
+			}
+			if address.AlternatePhone != 0 {
+				addressList[index].AlternatePhone = address.AlternatePhone
+			}
+			if address.AddressType != "" {
+				addressList[index].AddressType = address.AddressType
+			}
+		}
+	}
+	err = saveDataInCache(userId, "address", addressList)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userId)})
+	if err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:saveDataInCache.Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("udpateAddressInCache: Could not update address in Cache"), rc)
+		return errors.New("Could not update address in Cache")
 	}
 	return nil
 }
