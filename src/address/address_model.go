@@ -114,6 +114,47 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	return addresses, nil
 }
 
+func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
+	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?`
+
+	var addressTypeField string
+	if a.AddressType == appconstant.Billing {
+		addressTypeField = `, is_default_billing = 1`
+	} else if a.AddressType == appconstant.Shipping {
+		addressTypeField = `, is_default_shipping = 1`
+	}
+	sql = sql + addressTypeField
+
+	customerAddressRegion, countryID, err := getRegionId(a.AddressRegion, debug)
+	if err != nil {
+		return 0, err
+	}
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
+
+	// Use a transaction to allow rollbacks in case of failure
+	txObj, _ := mysqlObj.StartTransaction()
+	rows, err1 := executeTransactionalQuery(txObj, "Insert-customer_address", sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryId, userId, a.IsOffice)
+	if err1 != nil {
+		txObj.RollbackTransaction()
+		logger.Error(fmt.Sprintf("|%s|%s|%s", MYSQLError, err1.Error(), "customer_address"))
+		return 0, err1
+	}
+	err = txObj.CommitTransaction()
+	if err != nil {
+		txObj.RollbackTransaction()
+		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", MYSQLError, err.Error(), "customer_address"))
+		return 0, err
+	}
+	id, err := rows.LastInsertId()
+	if err != nil {
+		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", MYSQLError, err.Error(), "customer_address"))
+		return 0, err
+	}
+	logger.Info(fmt.Sprintf("Last Insert Id %s", id))
+
+	return id, nil
+}
+
 func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
