@@ -230,10 +230,10 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 //saveDataInCache save data in cache
 func saveDataInCache(id string, ty string, value interface{}) error {
 	p := profiler.NewProfiler()
-	p.StartProfile("AddressHelper#getAddressListFromCache")
+	p.StartProfile("AddressHelper#saveDataInCache")
 
 	defer func() {
-		p.EndProfileWithMetric([]string{"AddressHelper#getAddressListFromCache"})
+		p.EndProfileWithMetric([]string{"AddressHelper#saveDataInCache"})
 	}()
 
 	cacheObj, errG := cache.Get(cache.Redis)
@@ -262,35 +262,20 @@ func saveDataInCache(id string, ty string, value interface{}) error {
 	return nil
 }
 
-//invalidateCache invalidate cache key
-func invalidateCache(key string) error {
-	cacheObj, errG := cache.Get(cache.Redis)
-	if errG != nil {
-		msg := fmt.Sprintf("Redis Config Error - %v", errG)
-		logger.Error(msg)
-	}
-
-	err := cacheObj.Delete(key)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 //udpateAddressInCache update/edit user's particular address in cache
 func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
-	prof := profiler.NewProfiler()
-	prof.StartProfile("address-address_helper-updateAddressInCache")
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#updateAddressInCache")
 
 	defer func() {
-		prof.EndProfileWithMetric([]string{"address-address_helper-updateAddressInCache"})
+		p.EndProfileWithMetric([]string{"AddressHelper#updateAddressInCache"})
 	}()
 
 	rc := params.RequestContext
-	userId := rc.UserID
+	userID := rc.UserID
 	address := params.QueryParams.Address
 
-	addressList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
+	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error while fetching address list from Cache"), rc)
@@ -342,8 +327,8 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 			}
 		}
 	}
-	err = saveDataInCache(userId, "address", addressList)
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userId)})
+	err = saveDataInCache(userID, "address", addressList)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 	if err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:saveDataInCache.Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("udpateAddressInCache: Could not update address in Cache"), rc)
@@ -352,18 +337,20 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 	return nil
 }
 
-func updateAddressListInCache(params *RequestParams, addressId string, debug *Debug) {
-	prof := profiler.NewProfiler()
-	prof.StartProfile("address-address_helper-updateAddressListInCache")
+//updateAddressListInCache re-populate address list in cache
+func updateAddressListInCache(params *RequestParams, addressID string, debug *Debug) {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#updateAddressListInCache")
 
 	defer func() {
-		prof.EndProfileWithMetric([]string{"address-address_helper-updateAddressListInCache"})
+		p.EndProfileWithMetric([]string{"AddressHelper#updateAddressListInCache"})
 	}()
-	rc := params.RequestContext
-	userId := rc.UserID
-	address, _ := getAddressList(params, addressId, debug)
 
-	addressList, err := getAddressListFromCache(userId, params.QueryParams, debug)
+	rc := params.RequestContext
+	userID := rc.UserID
+	address, _ := getAddressList(params, addressID, debug)
+
+	addressList, err := getAddressListFromCache(userID, params.QueryParams, debug)
 	if err != nil {
 		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
 	}
@@ -372,8 +359,8 @@ func updateAddressListInCache(params *RequestParams, addressId string, debug *De
 		flag  bool
 	)
 	for key, value := range addressList {
-		addId := fmt.Sprintf("%d", value.Id)
-		if addId == addressId {
+		addID := fmt.Sprintf("%d", value.Id)
+		if addID == addressID {
 			index = key
 			flag = true
 			break
@@ -384,12 +371,27 @@ func updateAddressListInCache(params *RequestParams, addressId string, debug *De
 		addressList = append(addressList[:index], addressList[index+1:]...)
 	}
 	addressList = append(addressList, address...)
-	err = saveDataInCache(userId, "address", addressList)
+	err = saveDataInCache(userID, "address", addressList)
 
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userId)})
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 
 	if err != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache.saveDataInCache:Err", Value: err.Error()})
-		logger.Error(fmt.Sprintf("Could not update addressList in cache. ", err.Error()), rc)
+		logger.Error(fmt.Sprintf("Could not update addressList in cache. %s", err.Error()), rc)
 	}
+}
+
+//invalidateCache invalidate cache key
+func invalidateCache(key string) error {
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+
+	err := cacheObj.Delete(key)
+	if err != nil {
+		return err
+	}
+	return nil
 }

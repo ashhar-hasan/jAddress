@@ -11,6 +11,38 @@ import (
 	"github.com/jabong/florest-core/src/components/sqldb"
 )
 
+func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, err error) {
+	db, err := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("AddressModel#getRegionId")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"AddressModel#getRegionId"})
+	}()
+
+	sql := `SELECT CAST(id_customer_address_region AS SIGNED INT), CAST(fk_country AS SIGNED INT) FROM customer_address_region WHERE id_customer_address_region = ?`
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
+	rows, err := db.Query(sql, regionId)
+	if err != nil {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address_region"))
+		return 0, 0, err
+	}
+	var rid uint32
+	flag := false
+	for rows.Next() {
+		flag = true
+		err = rows.Scan(&rid, &countryId)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Mysql Row Error while getting row from customer_address_region table %s", err))
+			return 0, 0, err
+		}
+	}
+	if flag == false {
+		return 0, 0, errors.New("Invalid address region Id is given")
+	}
+	return rid, countryId, nil
+}
+
 func getAddressList(params *RequestParams, addressId string, debug *Debug) (address []AddressResponse, err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
@@ -115,6 +147,14 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 }
 
 func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
+	db, _ := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("AddressModel#addAddress")
+
+	defer func() {
+		prof.EndProfileWithMetric([]string{"AddressModel#addAddress"})
+	}()
+
 	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?`
 
 	var addressTypeField string
@@ -125,30 +165,34 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 	}
 	sql = sql + addressTypeField
 
-	customerAddressRegion, countryID, err := getRegionId(a.AddressRegion, debug)
-	if err != nil {
-		return 0, err
+	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
+	if err1 != nil {
+		return 0, err1
 	}
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
 
-	// Use a transaction to allow rollbacks in case of failure
-	txObj, _ := mysqlObj.StartTransaction()
-	rows, err1 := executeTransactionalQuery(txObj, "Insert-customer_address", sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryId, userId, a.IsOffice)
+	// start and commit one txn: insert one row in table
+	txObj, terr := db.GetTxnObj()
+	if terr != nil {
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, terr.Error(), "customer_address"))
+		return 0, terr
+	}
+	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice)
 	if err1 != nil {
-		txObj.RollbackTransaction()
-		logger.Error(fmt.Sprintf("|%s|%s|%s", MYSQLError, err1.Error(), "customer_address"))
+		txObj.Rollback()
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
 		return 0, err1
 	}
-	err = txObj.CommitTransaction()
-	if err != nil {
-		txObj.RollbackTransaction()
-		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", MYSQLError, err.Error(), "customer_address"))
-		return 0, err
+	err1 = txObj.Commit()
+	if err1 != nil {
+		txObj.Rollback()
+		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		return 0, err1
 	}
-	id, err := rows.LastInsertId()
-	if err != nil {
-		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", MYSQLError, err.Error(), "customer_address"))
-		return 0, err
+	id, err1 := rows.LastInsertId()
+	if err1 != nil {
+		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		return 0, err1
 	}
 	logger.Info(fmt.Sprintf("Last Insert Id %s", id))
 
@@ -240,36 +284,6 @@ func getAddressTypeSql(ty string) string {
 		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
 	}
 	return updateTypeField
-}
-
-func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, err error) {
-
-	db, err := sqldb.Get("mysdb")
-
-	sql := `Select CAST(id_customer_address_region as SIGNED INT), CAST(fk_country as SIGNED INT) from customer_address_region where id_customer_address_region = ?` //+ fmt.Sprintf("%d", regionId)
-
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
-	rows, err := db.Query(sql, regionId)
-
-	if err != nil {
-		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
-		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address_region"))
-		return 0, 0, err
-	}
-	var rid uint32
-	flag := false
-	for rows.Next() {
-		flag = true
-		err = rows.Scan(&rid, &countryId)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Mysql Row Error while getting row from customer_address_region table", err))
-			return 0, 0, err
-		}
-	}
-	if flag == false {
-		return 0, 0, errors.New("Invalid address region Id is given")
-	}
-	return rid, countryId, nil
 }
 
 func getUpdateSmsOptOfUserQuery() string {
