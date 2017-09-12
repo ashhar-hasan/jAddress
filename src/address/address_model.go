@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -22,7 +23,7 @@ func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, er
 	sql := `SELECT CAST(id_customer_address_region AS SIGNED INT), CAST(fk_country AS SIGNED INT) FROM customer_address_region WHERE id_customer_address_region = ?`
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
 	rows, err := db.Query(sql, regionId)
-	if err != nil {
+	if err.(*sqldb.SDBError) != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address_region"))
 		return 0, 0, err
@@ -155,7 +156,7 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		prof.EndProfileWithMetric([]string{"AddressModel#addAddress"})
 	}()
 
-	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?`
+	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?`
 
 	var addressTypeField string
 	if a.AddressType == appconstant.Billing {
@@ -167,6 +168,7 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 
 	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
 	if err1 != nil {
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
 		return 0, err1
 	}
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
@@ -177,7 +179,7 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, terr.Error(), "customer_address"))
 		return 0, terr
 	}
-	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice)
+	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format("2006-01-02 15:04:05"))
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))

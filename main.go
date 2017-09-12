@@ -62,6 +62,7 @@ func registerInitFunc() {
 		if err = cache.Set(cache.Redis, appConfig.Cache.Redis, new(cache.RedisClientAdapter)); err != nil {
 			logger.Error(err)
 		}
+		address.Initialise()
 	})
 }
 

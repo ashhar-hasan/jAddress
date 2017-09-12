@@ -238,13 +238,13 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			break
 		}
 	}
-
 	if httpVerb == "PUT" {
 		if address.Req != "" {
 			if address.Id == 0 || address.AddressType == "" {
 				return errors.New("Required parameters are missing")
 			}
 		} else {
+			// TODO: Tell what params are missing
 			if address.Id == 0 ||
 				address.FirstName == "" ||
 				address.Address1 == "" ||
@@ -255,6 +255,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			}
 		}
 	} else if httpVerb == "POST" {
+		// TODO: Tell what params are missing
 		if address.FirstName == "" ||
 			address.Address1 == "" ||
 			address.City == "" ||
