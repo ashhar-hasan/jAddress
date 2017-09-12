@@ -351,3 +351,45 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 	}
 	return nil
 }
+
+func updateAddressListInCache(params *RequestParams, addressId string, debug *Debug) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_helper-updateAddressListInCache")
+
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_helper-updateAddressListInCache"})
+	}()
+	rc := params.RequestContext
+	userId := rc.UserID
+	address, _ := getAddressList(params, addressId, debug)
+
+	addressList, err := getAddressListFromCache(userId, params.QueryParams, debug)
+	if err != nil {
+		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
+	}
+	var (
+		index int
+		flag  bool
+	)
+	for key, value := range addressList {
+		addId := fmt.Sprintf("%d", value.Id)
+		if addId == addressId {
+			index = key
+			flag = true
+			break
+		}
+	}
+	if flag {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache:Deleting an index", Value: fmt.Sprintf("%d", index)})
+		addressList = append(addressList[:index], addressList[index+1:]...)
+	}
+	addressList = append(addressList, address...)
+	err = saveDataInCache(userId, "address", addressList)
+
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userId)})
+
+	if err != nil {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache.saveDataInCache:Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Could not update addressList in cache. ", err.Error()), rc)
+	}
+}
