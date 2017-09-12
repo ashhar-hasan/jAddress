@@ -28,6 +28,7 @@ func main() {
 func registerAllApis() {
 	service.RegisterAPI(new(address.AddressAPI))
 	service.RegisterAPI(new(address.CreateAddressAPI))
+	service.RegisterAPI(new(address.UpdateAddressAPI))
 }
 
 func registerConfig() {
