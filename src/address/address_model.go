@@ -4,6 +4,7 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -156,7 +157,7 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		prof.EndProfileWithMetric([]string{"AddressModel#addAddress"})
 	}()
 
-	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?`
+	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?, validation_flag= ?`
 
 	var addressTypeField string
 	if a.AddressType == appconstant.Billing {
@@ -179,7 +180,9 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, terr.Error(), "customer_address"))
 		return 0, terr
 	}
-	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format("2006-01-02 15:04:05"))
+	validationFlag := validateAddress(a.Address1 + a.Address2)
+	fmt.Println(validationFlag)
+	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format("2006-01-02 15:04:05"), validationFlag)
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
@@ -218,7 +221,7 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 		query = `UPDATE customer_address SET ` + updateTypeField + ` WHERE fk_customer = ? and id_customer_address= ?`
 		logger.Info(fmt.Sprintf("Update Address Type query: %s", query), rc)
 	} else {
-		sql := `UPDATE customer_address SET first_name = '%s', address1 = '%s', phone = '%s', city = '%s', postcode = '%d', fk_customer_address_region = '%d', fk_country = '%d' , address_type = '%d'`
+		sql := `UPDATE customer_address SET first_name = '%s', address1 = '%s', phone = '%s', city = '%s', postcode = '%d', fk_customer_address_region = '%d', fk_country = '%d' , address_type = '%d', validation_flag = '%s'`
 		if updateTypeField != "" {
 			sql = sql + `, ` + updateTypeField
 		}
@@ -238,10 +241,11 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error while getting Region Info of the user"), rc)
 		}
-		query = fmt.Sprintf(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.City, a.PostCode, customerAddressRegion, countryId, a.IsOffice)
+		validationFlag := validateAddress(a.Address1 + a.Address2)
+		query = fmt.Sprintf(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.City, a.PostCode, customerAddressRegion, countryId, a.IsOffice, validationFlag)
+		fmt.Println("query:  ", query, "\n")
 		logger.Info(fmt.Sprintf("Update Address query: %s", query), rc)
 	}
-
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateAddressInDb:Sql", Value: query})
 
 	var err1, err2 error
@@ -291,4 +295,55 @@ func getAddressTypeSql(ty string) string {
 func getUpdateSmsOptOfUserQuery() string {
 	sql := `UPDATE customer_additional_info SET sms_opt=? WHERE fk_customer=?`
 	return sql
+}
+
+func validateAddress(address string) string {
+
+	//To check the same character is not repeated 4 times
+	repeatCount := 1
+	thresh := 4
+	lastChar := ""
+	var flag string
+	flag = "1"
+	for _, r := range address {
+		c := string(r)
+		if c == lastChar {
+			repeatCount++
+			if repeatCount == thresh {
+				flag = "0"
+				break
+			}
+		} else {
+			repeatCount = 1
+		}
+		lastChar = c
+	}
+
+	if flag == "1" {
+		count := 0
+		for i := 0; i < len(address); i++ {
+			if (i == len(address)-1) && count == 0 {
+				flag = "0"
+				break
+			}
+			if string(address[i]) == " " {
+				count += 1
+			}
+		}
+	}
+	specialChars := regexp.MustCompile(`[ \-\,\n]`)
+	vowels := regexp.MustCompile(`(?i)[aeiouy]`)
+	if flag == "1" && len(vowels.FindStringIndex(address)) == 0 {
+		flag = "0"
+	}
+	if flag == "1" {
+		result_array := specialChars.Split(address, -1)
+		for _, v := range result_array {
+			if len(v) > 20 {
+				flag = "0"
+				break
+			}
+		}
+	}
+	return flag
 }
