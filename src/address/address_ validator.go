@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -18,66 +17,66 @@ type AddressValidator struct {
 	id string
 }
 
-func (n *AddressValidator) SetID(id string) {
-	n.id = id
+func (a *AddressValidator) SetID(id string) {
+	a.id = id
 }
 
-func (n AddressValidator) GetID() (string, error) {
-	return n.id, nil
+func (a AddressValidator) GetID() (string, error) {
+	return a.id, nil
 }
 
-func (n AddressValidator) Name() string {
+func (a AddressValidator) Name() string {
 	return "AddressValidator"
 }
 
 func (a AddressValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData, error) {
 	prof := profiler.NewProfiler()
-	prof.StartProfile("AddressValidator")
+	prof.StartProfile("AddressValidator#Execute")
 
 	defer func() {
-		prof.EndProfileWithMetric([]string{"AddressValidator_execute"})
+		prof.EndProfileWithMetric([]string{"AddressValidator#Execute"})
 	}()
 
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
-	logger.Info("AddressValidator_rc")
-	io.ExecContext.SetDebugMsg("Address Validator", "Address Validator-Execute")
+	io.ExecContext.SetDebugMsg("Address Validator", "Address Validator#Execute")
 	p, _ := io.IOData.Get(appconstant.IoRequestParams)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
-		logger.Error("AddressValidator. invalid type of params")
+		logger.Error("AddressValidator:\tInvalid type of params.")
 		return io, &constants.AppError{Code: constants.ParamsInValidErrorCode, Message: "invalid type of params"}
 	}
 	rp, _ := io.IOData.Get(constants.Request)
 	appHTTPReq, _ := rp.(*utilHttp.Request)
 	err := validateAddressParams(params, appHTTPReq.HTTPVerb, io)
 	if err != nil {
+		logger.Error("Address Validator:\tRequest params validation failed." + err.Error())
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
-	logger.Info(fmt.Sprintf("params ----- > %+v", params), rc)
+	logger.Info(fmt.Sprintf("AddressValidator#Execute received the request params: %+v", params), rc)
 	return io, nil
 }
 
 func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io workflow.WorkFlowData) error {
 	rp, _ := io.IOData.Get(appconstant.IoHttpRequest)
-	appHttpReq, _ := rp.(*utilHttp.Request)
-	bodyParam, err := appHttpReq.GetBodyParameter()
+	appHTTPReq, _ := rp.(*utilHttp.Request)
+	bodyParam, err := appHTTPReq.GetBodyParameter()
 	byteArr := []byte(bodyParam)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Invalid Body Param = %v", err), params.RequestContext)
+		logger.Error(fmt.Sprintf("Invalid Body Param: %v", err), params.RequestContext)
 		return err
 	}
 
 	var r interface{}
 	err = json.Unmarshal(byteArr, &r)
 	if err != nil {
-		logger.Error(fmt.Sprintf("decodeJson error is = %v", err), params.RequestContext)
+		logger.Error(fmt.Sprintf("decodeJson error: %v", err), params.RequestContext)
 		return err
 	}
 
 	valMap, rOk := r.(map[string]interface{})
 	if !rOk {
-		logger.Error(fmt.Sprintf("couldn't resolve json to map"), params.RequestContext)
 		err = errors.New("couldn't resolve json to map")
+		logger.Error(err.Error(), params.RequestContext)
 		return err
 	}
 
@@ -86,7 +85,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 		switch key {
 		case (appconstant.AddressId):
 			id, ok := value.(float64)
-			if !ok {
+			if !isIntegral(id) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'id' is excpected to be integer type"), params.RequestContext)
 				return errors.New("Field Name 'id' is excpected to be integer type")
 			}
@@ -94,127 +93,115 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 		case appconstant.FirstName:
 			str, ok := value.(string)
 			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'FirstName' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'FirstName' is excpected to be string type")
+				logger.Error(fmt.Sprintf("Field Name 'firstname' is excpected to be string type"), params.RequestContext)
+				return errors.New("Field Name 'firstname' is excpected to be string type")
 			}
 			address.FirstName = sanitize(str, true)
 		case appconstant.LastName:
 			str, ok := value.(string)
 			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'LastName' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'LastName' is excpected to be string type")
+				logger.Error(fmt.Sprintf("Field Name 'lastname' is excpected to be string type"), params.RequestContext)
+				return errors.New("Field Name 'lastname' is excpected to be string type")
 			}
 			address.LastName = sanitize(str, true)
 		case appconstant.Address1:
 			str, ok := value.(string)
 			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Address1' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'Address1' is excpected to be string type")
+				logger.Error(fmt.Sprintf("Field Name 'address1' is excpected to be string type"), params.RequestContext)
+				return errors.New("Field Name 'address1' is excpected to be string type")
 			}
 			address.Address1 = sanitize(str, false)
 		case appconstant.Address2:
 			str, ok := value.(string)
 			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Address2' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'Address2' is excpected to be string type")
+				logger.Error(fmt.Sprintf("Field Name 'address2' is excpected to be string type"), params.RequestContext)
+				return errors.New("Field Name 'address2' is excpected to be string type")
 			}
 			address.Address2 = sanitize(str, false)
 		case appconstant.Phone:
 			mobile, ok := value.(float64)
-			s := fmt.Sprintf("%d", uint64(mobile))
-			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Phone' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'Phone' is excpected to be integer type")
+			if !isIntegral(mobile) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'phone' is excpected to be integer type"), params.RequestContext)
+				return errors.New("Field Name 'phone' is excpected to be integer type")
 			}
+			s := fmt.Sprintf("%d", uint64(mobile))
 			if len(s) != 10 {
-				return errors.New("Invalid phone number")
+				return errors.New("invalid phone number - length should be 10 digits")
 			}
 
-			address.Phone = int64(mobile) //fmt.Sprintf("%d", uint64(mobile))
+			address.Phone = int64(mobile)
 
 		case appconstant.AlternatePhone:
 			altPh, ok := value.(float64)
-			s := fmt.Sprintf("%d", uint64(altPh))
-			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Alternate Phone' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'Alternate Phone' is excpected to be integer type")
+			if !isIntegral(altPh) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'alt_phone' is excpected to be integer type"), params.RequestContext)
+				return errors.New("Field Name 'alt_phone' is excpected to be integer type")
 			}
+			s := fmt.Sprintf("%d", uint64(altPh))
 			if len(s) != 10 {
-				return errors.New("Invalid alternate phone")
+				return errors.New("invalid alternate phone - length should be 10 digits")
 			}
 			address.AlternatePhone = int64(altPh)
 		case appconstant.City:
 			str, ok := value.(string)
 			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'City' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'City' is excpected to be string type")
+				logger.Error(fmt.Sprintf("Field Name 'city' is excpected to be string type"), params.RequestContext)
+				return errors.New("Field Name 'city' is excpected to be string type")
 			}
 			address.City = sanitize(str, false)
 		case appconstant.Region:
 			address.RegionName = value.(string)
 		case appconstant.AddressRegion:
-			addressRegionId, ok := value.(float64)
-			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Address_Region' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'Address_Region' is excpected to be integer type")
+			addressRegionID, ok := value.(float64)
+			if !isIntegral(addressRegionID) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'address_region' is excpected to be integer type"), params.RequestContext)
+				return errors.New("Field Name 'address_region' is excpected to be integer type")
 			}
-			logger.Info(fmt.Sprintf("AddressRegion Id after converting to uint32 is: %d", uint32(addressRegionId)), params.RequestContext)
-			address.AddressRegion = uint32(addressRegionId)
+			logger.Info(fmt.Sprintf("AddressRegion Id after converting to uint32 is: %d", uint32(addressRegionID)), params.RequestContext)
+			address.AddressRegion = uint32(addressRegionID)
 		case appconstant.Postcode:
 			p, ok := value.(float64)
-			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Postcode' is excpected to be int type"), params.RequestContext)
-				return errors.New("Field Name 'Postcode' is excpected to be int type")
+			if !isIntegral(p) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'postcode' is excpected to be int type"), params.RequestContext)
+				return errors.New("Field Name 'postcode' is excpected to be int type")
 			}
 			pc := fmt.Sprintf("%d", int(p))
-			postcode, err := strconv.Atoi(pc)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Field Name 'Postcode' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'Postcode' is excpected to be integer type")
-			}
 			if len(pc) != 6 {
 				return errors.New("Invalid postcode")
 			}
-			address.PostCode = postcode
+			address.PostCode = int(p)
 		case appconstant.SmsOpt:
 			sms, ok := value.(float64)
-			if !ok {
+			if !isIntegral(sms) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'sms_opt' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'sms_opt' is excpected to be int type")
 			}
-			sms_opt := fmt.Sprintf("%d", int(sms))
-			str, err := strconv.Atoi(sms_opt)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Field Name 'sms_opt' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'sms_opt' is excpected to be integer type")
-			}
+			str := int(sms)
 			if str != 0 && str != 1 {
-				logger.Error(fmt.Sprintf("Invalid Value in 'sms_opt' Field"), params.RequestContext)
-				return errors.New("Invalid Value in 'sms_opt' Field")
+				logger.Error(fmt.Sprintf("Invalid Value in 'sms_opt' field - should be 0 or 1"), params.RequestContext)
+				return errors.New("Invalid Value in 'sms_opt' field - should be 0 or 1")
 			}
 			address.SmsOpt = str
 		case appconstant.IsOffice:
 			address.IsOffice = 0
 			isOffice, ok := value.(float64)
-			if !ok {
+			if !isIntegral(isOffice) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'is_office' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'is_office' is excpected to be int type")
 			}
-			isOff := fmt.Sprintf("%d", int(isOffice))
-			str, _ := strconv.Atoi(isOff)
+			str := int(isOffice)
 			if str != 0 && str != 1 {
-				logger.Error(fmt.Sprintf("Invalid Value in 'is_office' Field"), params.RequestContext)
-				return errors.New("Invalid Value in 'is_office' Field")
+				logger.Error(fmt.Sprintf("Invalid Value in 'is_office' field - should be 0 or 1"), params.RequestContext)
+				return errors.New("Invalid Value in 'is_office' field - should be 0 or 1")
 			}
 			address.IsOffice = str
 		case appconstant.Country:
 			country, ok := value.(float64)
-			if !ok {
+			if !isIntegral(country) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'country' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'country' is excpected to be int type")
 			}
 			address.Country = uint32(country)
-			fmt.Println(address.Country)
 		case appconstant.AddressType:
 			addressType, err := validateAddressType(value)
 			if err != nil {
@@ -229,8 +216,8 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				return errors.New("Field Name 'Req' is excpected to be string type")
 			}
 			if str != "" && str != appconstant.UpdateType {
-				logger.Error(fmt.Sprintf("Incorrect value in 'Req' field"), params.RequestContext)
-				return errors.New("Incorrect value in 'Req' field")
+				logger.Error(fmt.Sprintf("Incorrect value in 'Req' field - it should either be \"\" or \"update_type\""), params.RequestContext)
+				return errors.New("Incorrect value in 'Req' field - it should either be \"\" or \"update_type\"")
 			}
 			address.Req = str
 
@@ -267,4 +254,8 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 	params.QueryParams.Address = address
 
 	return nil
+}
+
+func isIntegral(val float64) bool {
+	return val == float64(int(val))
 }

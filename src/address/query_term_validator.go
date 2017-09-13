@@ -106,7 +106,7 @@ func validateAddressType(ty interface{}) (addressType string, err error) {
 	} else if str == appconstant.All {
 		addressType = appconstant.All
 	} else {
-		return addressType, errors.New("Invalid address type. Possible types are billing, shipping")
+		return addressType, errors.New("Invalid address type. Possible types are billing, shipping, other, all")
 	}
 	return addressType, err
 }
