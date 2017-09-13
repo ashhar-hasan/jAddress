@@ -181,7 +181,6 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		return 0, terr
 	}
 	validationFlag := validateAddress(a.Address1 + a.Address2)
-	fmt.Println(validationFlag)
 	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format("2006-01-02 15:04:05"), validationFlag)
 	if err1 != nil {
 		txObj.Rollback()
@@ -243,7 +242,6 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 		}
 		validationFlag := validateAddress(a.Address1 + a.Address2)
 		query = fmt.Sprintf(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.City, a.PostCode, customerAddressRegion, countryId, a.IsOffice, validationFlag)
-		fmt.Println("query:  ", query, "\n")
 		logger.Info(fmt.Sprintf("Update Address query: %s", query), rc)
 	}
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateAddressInDb:Sql", Value: query})
