@@ -41,7 +41,7 @@ func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlo
 	logger.Info("Entered "+a.Name(), rc)
 	io.ExecContext.SetDebugMsg("List Address Executor", "List Address Executor Execute")
 
-	p, _ := io.IOData.Get(appconstant.IoRequestParams)
+	p, _ := io.IOData.Get(appconstant.IO_REQUEST_PARAMS)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
 		logger.Error("ListAddressExecutor.invalid type of params", rc)
@@ -55,7 +55,7 @@ func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlo
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
 	addDebugContents(io, debugInfo)
-	derr := io.IOData.Set(appconstant.IoAddressResult, addressListResult)
+	derr := io.IOData.Set(appconstant.IO_ADDRESS_RESULT, addressListResult)
 	if derr != nil {
 		logger.Error(fmt.Sprintf("Error in setting address list result to workflow data- %v", derr), rc)
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr.Error()}

@@ -62,12 +62,12 @@ func Decrypt(encryptedData []string, debugInfo *Debug) []string {
 		res               []byte
 		partialData, data []string
 	)
-	batchSize := int(appconstant.BatchSize)
+	batchSize := int(appconstant.BATCH_SIZE)
 	length := len(encryptedData)
 
 	if length > batchSize {
 		modulo := length % batchSize
-		loop := math.Ceil(float64(length) / appconstant.BatchSize)
+		loop := math.Ceil(float64(length) / appconstant.BATCH_SIZE)
 		loops := int(loop)
 		for i := 0; i < loops; i++ {
 			if modulo != 0 && i == (loops-1) {
@@ -186,7 +186,7 @@ func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]Addr
 
 //GetAddressListCacheKey return the cache key to get/set user addresses
 func GetAddressListCacheKey(userID string) string {
-	return fmt.Sprintf(appconstant.AddressCacheKey, userID)
+	return fmt.Sprintf(appconstant.ADDRESS_CACHE_KEY, userID)
 }
 
 //getAddressListFromCache get user's address list from cache
@@ -295,7 +295,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 	}
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:index", Value: fmt.Sprintf("%d", index)})
 	if flag {
-		if params.QueryParams.Address.Req == appconstant.UpdateType {
+		if params.QueryParams.Address.Req == appconstant.UPDATE_TYPE {
 			addressList[index].AddressType = params.QueryParams.Address.AddressType
 		} else {
 			addressList[index].FirstName = address.FirstName

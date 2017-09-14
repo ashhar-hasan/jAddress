@@ -40,7 +40,7 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	a := new(AddressResult)
 
 	var (
-		addressType   string = appconstant.All
+		addressType   string = appconstant.ALL
 		addressResult []AddressResponse
 		err           error
 	)

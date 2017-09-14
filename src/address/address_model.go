@@ -26,7 +26,7 @@ func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, er
 	rows, err := db.Query(sql, regionId)
 	if err.(*sqldb.SDBError) != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
-		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQLError, err.Error(), "customer_address_region"))
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQL_ERROR, err.Error(), "customer_address_region"))
 		return 0, 0, err
 	}
 	var rid uint32
@@ -73,7 +73,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	rows, err := db.Query(sql)
 	e := err.(*sqldb.SDBError)
 	if e != nil {
-		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQLError, e.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, e.Error(), "customer_address"))
 		fmt.Println("Mysql Error while getting data from customer_address table", e.Error())
 		return nil, e
 	}
@@ -109,13 +109,13 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		ad.IsOffice = isOffice
 
 		if isBilling == 0 && isShipping == 0 {
-			ad.AddressType = appconstant.Other
+			ad.AddressType = appconstant.OTHER
 		} else if isBilling == 1 {
-			ad.AddressType = appconstant.Billing
+			ad.AddressType = appconstant.BILLING
 		} else if isShipping == 1 {
-			ad.AddressType = appconstant.Shipping
+			ad.AddressType = appconstant.SHIPPING
 		} else {
-			ad.AddressType = appconstant.Other
+			ad.AddressType = appconstant.OTHER
 		}
 
 		sms, err := strconv.Atoi(string(smsOpt))
@@ -160,16 +160,16 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?, validation_flag= ?`
 
 	var addressTypeField string
-	if a.AddressType == appconstant.Billing {
+	if a.AddressType == appconstant.BILLING {
 		addressTypeField = `, is_default_billing = 1`
-	} else if a.AddressType == appconstant.Shipping {
+	} else if a.AddressType == appconstant.SHIPPING {
 		addressTypeField = `, is_default_shipping = 1`
 	}
 	sql = sql + addressTypeField
 
 	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
 	if err1 != nil {
-		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
 		return 0, err1
 	}
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
@@ -177,25 +177,25 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 	// start and commit one txn: insert one row in table
 	txObj, terr := db.GetTxnObj()
 	if terr != nil {
-		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, terr.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, terr.Error(), "customer_address"))
 		return 0, terr
 	}
 	validationFlag := validateAddress(a.Address1 + a.Address2)
 	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format("2006-01-02 15:04:05"), validationFlag)
 	if err1 != nil {
 		txObj.Rollback()
-		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
 		return 0, err1
 	}
 	err1 = txObj.Commit()
 	if err1 != nil {
 		txObj.Rollback()
-		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
 		return 0, err1
 	}
 	id, err1 := rows.LastInsertId()
 	if err1 != nil {
-		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"))
+		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
 		return 0, err1
 	}
 	logger.Info(fmt.Sprintf("Last Insert Id %s", id))
@@ -216,7 +216,7 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	a := params.QueryParams.Address
 	var updateTypeField, query string
 	updateTypeField = getAddressTypeSql(a.AddressType)
-	if params.QueryParams.Address.Req == appconstant.UpdateType {
+	if params.QueryParams.Address.Req == appconstant.UPDATE_TYPE {
 		query = `UPDATE customer_address SET ` + updateTypeField + ` WHERE fk_customer = ? and id_customer_address= ?`
 		logger.Info(fmt.Sprintf("Update Address Type query: %s", query), rc)
 	} else {
@@ -251,14 +251,14 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	if terr == nil {
 		_, err1 = txObj.Exec(query, userId, a.Id)
 		if err1 != nil {
-			logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQLError, err1.Error(), "customer_address"), rc)
+			logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
 		}
 
-		if params.QueryParams.Address.Req != appconstant.UpdateType {
+		if params.QueryParams.Address.Req != appconstant.UPDATE_TYPE {
 			updateSmsOptSql := getUpdateSmsOptOfUserQuery()
 			_, err2 = txObj.Exec(updateSmsOptSql, a.SmsOpt, userId)
 			if err2 != nil {
-				logger.Error(fmt.Sprintf("Error while updating customer_additional_info for sms_opt |%s|%s", appconstant.MYSQLError, err2.Error()), rc)
+				logger.Error(fmt.Sprintf("Error while updating customer_additional_info for sms_opt |%s|%s", appconstant.MYSQL_ERROR, err2.Error()), rc)
 			}
 		}
 
@@ -275,16 +275,16 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 			return err
 		}
 	} else {
-		logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", appconstant.MYSQLError, terr), rc)
+		logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", appconstant.MYSQL_ERROR, terr), rc)
 	}
 	return nil
 }
 
 func getAddressTypeSql(ty string) string {
 	var updateTypeField string
-	if ty == appconstant.Billing {
+	if ty == appconstant.BILLING {
 		updateTypeField = ` is_default_billing = 1, is_default_shipping = 0`
-	} else if ty == appconstant.Shipping {
+	} else if ty == appconstant.SHIPPING {
 		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
 	}
 	return updateTypeField

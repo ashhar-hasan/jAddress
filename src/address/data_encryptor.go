@@ -37,7 +37,7 @@ func (a DataEncryptor) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData,
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
 	logger.Info("DataEncryptor_rc")
 	io.ExecContext.SetDebugMsg("Data Encryptor", "Data Encryptor-Execute")
-	p, _ := io.IOData.Get(appconstant.IoRequestParams)
+	p, _ := io.IOData.Get(appconstant.IO_REQUEST_PARAMS)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
 		logger.Error("DataEncryptor. invalid type of params")

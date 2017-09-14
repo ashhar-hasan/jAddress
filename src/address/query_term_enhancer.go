@@ -50,11 +50,11 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
 	// httpReq := appHTTPReq.OriginalRequest
-	sessionID, err := io.ExecContext.Get(appconstant.SessionID)
+	sessionID, err := io.ExecContext.Get(appconstant.SESSION_ID)
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
 	}
-	userID, rerr := io.ExecContext.Get(appconstant.UserID)
+	userID, rerr := io.ExecContext.Get(appconstant.USER_ID)
 	if userID == "" || rerr != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "UserId must be provided in request header"}
 	}
@@ -72,7 +72,7 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	updateParamsWithRequestContext(&params, io)
 
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
-	if derr := io.IOData.Set(appconstant.IoRequestParams, &params); derr != nil {
+	if derr := io.IOData.Set(appconstant.IO_REQUEST_PARAMS, &params); derr != nil {
 		return io, derr
 	}
 	return io, nil

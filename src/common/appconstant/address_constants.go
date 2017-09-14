@@ -2,65 +2,64 @@ package appconstant
 
 //URL Params for address service
 const (
-	SessionID        = "X-Jabong-SessionId"
-	UserID           = "X-Jabong-UserId"
-	IoQuery          = "QUERY"
-	IoAddressResult  = "RESULT"
-	IoLocalityResult = "RESULT"
-	IoHttpRequest    = "REQUEST"
-	IoRequestParams  = "QUERYPARAMS"
+	SESSION_ID        = "X-Jabong-SessionId"
+	USER_ID           = "X-Jabong-UserId"
+	IO_QUERY          = "QUERY"
+	IO_ADDRESS_RESULT = "RESULT"
+	IO_HTTP_REQUEST   = "REQUEST"
+	IO_REQUEST_PARAMS = "QUERYPARAMS"
 )
 
 const (
-	UrlParamLimit       = "limit"
-	UrlParamOffset      = "offset"
-	UrlParamAddressId   = "id"
-	UrlParamPostcode    = "postcode"
-	UrlParamAddressType = "type"
+	URLPARAM_LIMIT       = "limit"
+	URLPARAM_OFFSET      = "offset"
+	URLPARAM_ADDRESSID   = "id"
+	URLPARAM_POSTCODE    = "postcode"
+	URLPARAM_ADDRESSTYPE = "type"
 )
 
 const (
-	MYSQLError string = "MysqlError"
+	MYSQL_ERROR string = "MysqlError"
 )
 
 //Redis constants
 const (
-	AddressCacheKey string = "address_list_key_%s"
+	ADDRESS_CACHE_KEY string = "address_list_key_%s"
 )
 
 //Encryption service end points
 const (
-	EncryptEndpoint = "/encryption/v1/encrypt/"
-	DecryptEndpoint = "/encryption/v1/decrypt/"
-	BatchSize       = float64(50)
+	ENCRYPT_ENDPOINT = "/encryption/v1/encrypt/"
+	DECRYPT_ENDPOINT = "/encryption/v1/decrypt/"
+	BATCH_SIZE       = float64(50)
 )
 
 const (
-	Billing       = "billing"
-	Shipping      = "shipping"
-	Other         = "other"
-	All           = "all"
-	UpdateType    = "update_type"
-	DefaultLimit  = 10
-	DefaultOffset = 0
-	MaxLimit      = 50
+	BILLING        = "billing"
+	SHIPPING       = "shipping"
+	OTHER          = "other"
+	ALL            = "all"
+	UPDATE_TYPE    = "update_type"
+	DEFAULT_LIMIT  = 10
+	DEFAULT_OFFSET = 0
+	MAX_LIMIT      = 50
 )
 
 const (
-	AddressId      = "id"
-	FirstName      = "firstname"
-	LastName       = "lastname"
-	Phone          = "phone"
-	AlternatePhone = "alt_phone"
-	Address1       = "address1"
-	Address2       = "address2"
-	City           = "city"
-	Region         = "state"
-	AddressRegion  = "address_region"
-	AddressType    = "address_type"
-	Postcode       = "postcode"
-	Country        = "country"
-	SmsOpt         = "sms_opt"
-	IsOffice       = "is_office"
-	ParamReq       = "req"
+	ADDRESS_ID      = "id"
+	FIRST_NAME      = "firstname"
+	LAST_NAME       = "lastname"
+	PHONE           = "phone"
+	ALTERNATE_PHONE = "alt_phone"
+	ADDRESS1        = "address1"
+	ADDRESS2        = "address2"
+	CITY            = "city"
+	REGION          = "state"
+	ADDRESS_REGION  = "address_region"
+	ADDRESS_TYPE    = "address_type"
+	POSTCODE        = "postcode"
+	COUNTRY         = "country"
+	SMS_OPT         = "sms_opt"
+	IS_OFFICE       = "is_office"
+	PARAM_REQ       = "req"
 )

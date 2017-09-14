@@ -37,7 +37,7 @@ func (a UpdateAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkF
 	rc, _ := io.ExecContext.Get(constants.RequestContext)
 	logger.Info("UpdateAddressExecutor_rc")
 	io.ExecContext.SetDebugMsg("Update Address Executor", "Update Address Executor-Execute")
-	p, _ := io.IOData.Get(appconstant.IoRequestParams)
+	p, _ := io.IOData.Get(appconstant.IO_REQUEST_PARAMS)
 	params, pOk := p.(*RequestParams)
 	if !pOk || params == nil {
 		logger.Error("UpdateAddressExecutor. invalid type of params")
@@ -62,7 +62,7 @@ func (a UpdateAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkF
 			return io, &constants.AppError{Code: constants.DbErrorCode, Message: err.Error()}
 		}
 	}
-	derr := io.IOData.Set(appconstant.IoAddressResult, addressResult)
+	derr := io.IOData.Set(appconstant.IO_ADDRESS_RESULT, addressResult)
 	if derr != nil {
 		logger.Error(fmt.Sprintf("error in setting address result to workflow data- %v", derr), rc)
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr.Error()}

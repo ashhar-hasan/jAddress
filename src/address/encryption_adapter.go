@@ -29,7 +29,7 @@ func InitEncryptionService(host string, timeout string) (ret *EncryptionService,
 
 //EncryptData encrypt a string using the encryption service
 func (obj *EncryptionService) EncryptData(data []string, debugInfo *Debug) (body []byte, err error) {
-	reqURL := obj.Host + appconstant.EncryptEndpoint
+	reqURL := obj.Host + appconstant.ENCRYPT_ENDPOINT
 	reqURL = urlEncode(reqURL, data)
 	Timeout, err := strconv.Atoi(obj.RequestTimeOut)
 
@@ -44,7 +44,7 @@ func (obj *EncryptionService) EncryptData(data []string, debugInfo *Debug) (body
 
 //DecryptData decrypt a string using the decryption service
 func (obj *EncryptionService) DecryptData(data []string, debugInfo *Debug) (body []byte, err error) {
-	reqURL := obj.Host + appconstant.DecryptEndpoint
+	reqURL := obj.Host + appconstant.DECRYPT_ENDPOINT
 	reqURL = urlEncode(reqURL, data)
 	Timeout, err := strconv.Atoi(obj.RequestTimeOut)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "DecryptionUrl", Value: reqURL})
