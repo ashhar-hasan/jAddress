@@ -381,6 +381,46 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	}
 }
 
+func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address []AddressResponse, err error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-DeleteAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-DeleteAddress"})
+	}()
+	rc := params.RequestContext
+	userId := rc.UserID
+	addressId := params.QueryParams.AddressId
+
+	addressList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
+	if err != nil {
+		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not retrieve address list from Cache"), rc)
+		return address, errors.New("Could not retrieve address list from Cache")
+	}
+	id := fmt.Sprintf("%d", addressId)
+	var (
+		index int
+		flag  bool
+	)
+	for key, value := range addressList {
+		addId := fmt.Sprintf("%d", value.Id)
+		if addId == id {
+			index = key
+			flag = true
+			break
+		}
+	}
+	if flag {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:index", Value: fmt.Sprintf("%d", index)})
+		addressList = append(addressList[:index], addressList[index+1:]...)
+		err = saveDataInCache(userId, "address", addressList)
+		if err != nil {
+			logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
+			return address, errors.New("Could not update address list in Cache while deleting. " + err.Error())
+		}
+	}
+	return addressList, nil
+}
+
 //invalidateCache invalidate cache key
 func invalidateCache(key string) error {
 	cacheObj, errG := cache.Get(cache.Redis)

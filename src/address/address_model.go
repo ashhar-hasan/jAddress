@@ -280,6 +280,41 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	return nil
 }
 
+func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug) (err error) {
+	db, err := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_model-deleteAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_model-deleteAddress"})
+	}()
+	rc := params.RequestContext
+	userId := rc.UserID
+	id := params.QueryParams.AddressId
+	addressId := fmt.Sprintf("%d", id)
+	sql := `DELETE FROM customer_address WHERE id_customer_address=? AND fk_customer=?`
+
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddress:Sql", Value: sql})
+
+	txObj, _ := db.GetTxnObj()
+	r, err1 := txObj.Exec(sql, addressId, userId)
+	fmt.Println(r)
+	if err1 != nil {
+		txObj.Rollback()
+		logger.Error(fmt.Sprintf("Error while delete user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
+	}
+	err = txObj.Commit()
+	if err != nil {
+		txObj.Rollback()
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "Delete::CommitTransactionError:", Value: err.Error()})
+		return err
+	}
+	if cacheErr != nil {
+		key := GetAddressListCacheKey(userId)
+		invalidateCache(key)
+	}
+	return nil
+}
+
 func getAddressTypeSql(ty string) string {
 	var updateTypeField string
 	if ty == appconstant.BILLING {

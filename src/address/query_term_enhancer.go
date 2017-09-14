@@ -2,7 +2,9 @@ package address
 
 import (
 	"common/appconstant"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
@@ -49,8 +51,8 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	if !pOk || appHTTPReq == nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
-	// httpReq := appHTTPReq.OriginalRequest
 	sessionID, err := io.ExecContext.Get(appconstant.SESSION_ID)
+	httpReq := appHTTPReq.OriginalRequest
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
 	}
@@ -70,6 +72,13 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 
 	updateParamsWithBuckets(&params, io)
 	updateParamsWithRequestContext(&params, io)
+
+	if appHTTPReq.HTTPVerb == "DELETE" {
+		derr1 := validateAndSetParams(&params, httpReq)
+		if derr1 != nil {
+			return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr1.Error()}
+		}
+	}
 
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
 	if derr := io.IOData.Set(appconstant.IO_REQUEST_PARAMS, &params); derr != nil {
@@ -97,4 +106,13 @@ func updateParamsWithRequestContext(params *RequestParams, io workflow.WorkFlowD
 	if v, ok := rc.(utilHttp.RequestContext); ok {
 		params.RequestContext = v
 	}
+}
+
+func validateAndSetParams(params *RequestParams, httpReq *http.Request) error {
+	val, err := utilHttp.GetIntParamFields(httpReq, appconstant.URLPARAM_ADDRESSID)
+	if err != nil {
+		return errors.New("Id is missing  or not a number")
+	}
+	params.QueryParams.AddressId = val
+	return nil
 }

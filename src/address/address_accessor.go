@@ -134,3 +134,23 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 
 	return a, nil
 }
+
+func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-DeleteAddress")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-DeleteAddress"})
+	}()
+	a := new(AddressResult)
+	addressResult, cacheErr := deleteAddressFromCache(params, debugInfo)
+	if cacheErr != nil {
+		rc := params.RequestContext
+		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
+		err := invalidateCache(cacheKey)
+		logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+	}
+	go deleteAddress(params, cacheErr, debugInfo) //Delete Adddress From DB
+
+	a.AddressList = addressResult
+	return a, nil
+}
