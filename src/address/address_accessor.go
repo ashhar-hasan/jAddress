@@ -68,8 +68,18 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 		}
 	} else {
 		for _, v := range addressResult {
-			if v.AddressType == params.QueryParams.AddressType {
-				addressFiltered = append(addressFiltered, v)
+			if params.QueryParams.AddressType == "billing" {
+				if v.IsDefaultBilling == "1" {
+					addressFiltered = append(addressFiltered, v)
+				}
+			} else if params.QueryParams.AddressType == "shipping" {
+				if v.IsDefaultShipping == "1" {
+					addressFiltered = append(addressFiltered, v)
+				}
+			} else if params.QueryParams.AddressType == "other" {
+				if v.IsDefaultShipping == "0" && v.IsDefaultBilling == "0" {
+					addressFiltered = append(addressFiltered, v)
+				}
 			}
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -89,7 +90,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				logger.Error(fmt.Sprintf("Field Name 'id' is excpected to be integer type"), params.RequestContext)
 				return errors.New("Field Name 'id' is excpected to be integer type")
 			}
-			address.Id = uint32(id)
+			address.Id = strconv.FormatInt(int64(id), 10)
 		case appconstant.FIRST_NAME:
 			str, ok := value.(string)
 			if !ok {
@@ -129,7 +130,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				return errors.New("invalid phone number - length should be 10 digits")
 			}
 
-			address.Phone = int64(mobile)
+			address.Phone = strconv.FormatInt(int64(mobile), 10)
 
 		case appconstant.ALTERNATE_PHONE:
 			altPh, ok := value.(float64)
@@ -141,7 +142,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			if len(s) != 10 {
 				return errors.New("invalid alternate phone - length should be 10 digits")
 			}
-			address.AlternatePhone = int64(altPh)
+			address.AlternatePhone = strconv.FormatInt(int64(altPh), 10)
 		case appconstant.CITY:
 			str, ok := value.(string)
 			if !ok {
@@ -158,7 +159,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				return errors.New("Field Name 'address_region' is excpected to be integer type")
 			}
 			logger.Info(fmt.Sprintf("AddressRegion Id after converting to uint32 is: %d", uint32(addressRegionID)), params.RequestContext)
-			address.AddressRegion = uint32(addressRegionID)
+			address.AddressRegion = strconv.Itoa(int(addressRegionID))
 		case appconstant.POSTCODE:
 			p, ok := value.(float64)
 			if !isIntegral(p) || !ok {
@@ -169,7 +170,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			if len(pc) != 6 {
 				return errors.New("Invalid postcode")
 			}
-			address.PostCode = int(p)
+			address.PostCode = strconv.Itoa(int(p))
 		case appconstant.SMS_OPT:
 			sms, ok := value.(float64)
 			if !isIntegral(sms) || !ok {
@@ -181,9 +182,9 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				logger.Error(fmt.Sprintf("Invalid Value in 'sms_opt' field - should be 0 or 1"), params.RequestContext)
 				return errors.New("Invalid Value in 'sms_opt' field - should be 0 or 1")
 			}
-			address.SmsOpt = str
+			address.SmsOpt = strconv.Itoa(str)
 		case appconstant.IS_OFFICE:
-			address.IsOffice = 0
+			address.IsOffice = "0"
 			isOffice, ok := value.(float64)
 			if !isIntegral(isOffice) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'is_office' is excpected to be int type"), params.RequestContext)
@@ -194,14 +195,14 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 				logger.Error(fmt.Sprintf("Invalid Value in 'is_office' field - should be 0 or 1"), params.RequestContext)
 				return errors.New("Invalid Value in 'is_office' field - should be 0 or 1")
 			}
-			address.IsOffice = str
+			address.IsOffice = strconv.Itoa(str)
 		case appconstant.COUNTRY:
 			country, ok := value.(float64)
 			if !isIntegral(country) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'country' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'country' is excpected to be int type")
 			}
-			address.Country = uint32(country)
+			address.Country = strconv.Itoa(int(country))
 		case appconstant.ADDRESS_TYPE:
 			addressType, err := validateAddressType(value)
 			if err != nil {
@@ -227,17 +228,17 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 	}
 	if httpVerb == "PUT" {
 		if address.Req != "" {
-			if address.Id == 0 || address.AddressType == "" {
+			if address.Id == "" || address.AddressType == "" {
 				return errors.New("Required parameters are missing")
 			}
 		} else {
 			// TODO: Tell what params are missing
-			if address.Id == 0 ||
+			if address.Id == "" ||
 				address.FirstName == "" ||
 				address.Address1 == "" ||
 				address.City == "" ||
-				address.PostCode == 0 ||
-				address.AddressRegion == 0 {
+				address.PostCode == "" ||
+				address.AddressRegion == "" {
 				return errors.New("Required parameters are missing")
 			}
 		}
@@ -246,8 +247,8 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 		if address.FirstName == "" ||
 			address.Address1 == "" ||
 			address.City == "" ||
-			address.PostCode == 0 ||
-			address.AddressRegion == 0 {
+			address.PostCode == "" ||
+			address.AddressRegion == "" {
 			return errors.New("Required parameters are missing")
 		}
 	}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"strconv"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -136,12 +135,10 @@ func getDataFromServiceResponse(body []byte) (data []string, err error) {
 }
 
 func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) []DecryptedFields {
-	rc := params.RequestContext
 	var (
 		encryptedPhoneString    []string
 		encryptedAltPhoneString []string
-		dp, dap                 int64
-		err                     error
+		dp, dap                 string
 	)
 	for _, v := range ef {
 		encryptedPhoneString = append(encryptedPhoneString, v.EncryptedPhone)
@@ -152,24 +149,19 @@ func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *
 	res := make([]DecryptedFields, 0)
 	for k, v := range ef {
 		if decryptedPhone[k] != "" {
-			dp, err = strconv.ParseInt(decryptedPhone[k], 10, 64)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Can not parse 'phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedPhone, v.Id, err), rc)
-			}
+			dp = decryptedPhone[k]
 		} else {
-			dp = 0
+			dp = ""
 		}
 
 		if decryptedAltPhone[k] != "" {
-			dap, err = strconv.ParseInt(decryptedAltPhone[k], 10, 64)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Can not parse 'alternate phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedAlternatePhone, v.Id, err), rc)
-			}
+			dap = decryptedAltPhone[k]
 		} else {
-			dap = 0
+			dap = ""
 		}
 		res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
 	}
+	fmt.Printf("%v+", res)
 	return res
 }
 
@@ -304,10 +296,9 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 			addressList[index].City = address.City
 			addressList[index].AddressRegion = address.AddressRegion
 			addressList[index].PostCode = address.PostCode
-			addressList[index].IsOffice = address.IsOffice
 			addressList[index].SmsOpt = address.SmsOpt
 
-			if address.Country != 0 {
+			if address.Country != "" {
 				addressList[index].Country = address.Country
 			}
 			if address.RegionName != "" {
@@ -319,7 +310,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 			if address.Address2 != "" {
 				addressList[index].Address2 = address.Address2
 			}
-			if address.AlternatePhone != 0 {
+			if address.AlternatePhone != "" {
 				addressList[index].AlternatePhone = address.AlternatePhone
 			}
 			if address.AddressType != "" {

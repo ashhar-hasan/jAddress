@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"time"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -13,7 +12,7 @@ import (
 	"github.com/jabong/florest-core/src/components/sqldb"
 )
 
-func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, err error) {
+func getRegionId(regionId string, debug *Debug) (id string, countryId string, err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("AddressModel#getRegionId")
@@ -21,26 +20,26 @@ func getRegionId(regionId uint32, debug *Debug) (id uint32, countryId uint32, er
 		prof.EndProfileWithMetric([]string{"AddressModel#getRegionId"})
 	}()
 
-	sql := `SELECT CAST(id_customer_address_region AS SIGNED INT), CAST(fk_country AS SIGNED INT) FROM customer_address_region WHERE id_customer_address_region = ?`
+	sql := `SELECT id_customer_address_region, fk_country FROM customer_address_region WHERE id_customer_address_region = ?`
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
 	rows, err := db.Query(sql, regionId)
 	if err.(*sqldb.SDBError) != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address_region  |%s|%s|%s", appconstant.MYSQL_ERROR, err.Error(), "customer_address_region"))
-		return 0, 0, err
+		return "", "", err
 	}
-	var rid uint32
+	var rid string
 	flag := false
 	for rows.Next() {
 		flag = true
 		err = rows.Scan(&rid, &countryId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("Mysql Row Error while getting row from customer_address_region table %s", err))
-			return 0, 0, err
+			return "", "", err
 		}
 	}
 	if flag == false {
-		return 0, 0, errors.New("Invalid address region Id is given")
+		return "", "", errors.New("Invalid address region Id is given")
 	}
 	return rid, countryId, nil
 }
@@ -59,7 +58,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		return nil, errors.New("CustomerID not present")
 	}
 
-	sql := `SELECT DISTINCT(CAST(ca.id_customer_address as SIGNED INT)) as id,ca.first_name, ca.last_name, CAST(ca.phone as CHAR), CAST(IFNULL(ca.alternate_phone, "") as CHAR), ca.address1, ca.address2, ca.city, CAST(ca.is_default_billing as SIGNED INT), CAST(ca.is_default_shipping as SIGNED INT), r.name AS region, CAST(r.id_customer_address_region as SIGNED INT), CAST(postcode as SIGNED INT), CAST(country.id_country as SIGNED INT) as country, CAST(adi.sms_opt as SIGNED INT), CAST(IFNULL(ca.address_type, 0) as SIGNED INT)
+	sql := `SELECT DISTINCT(ca.id_customer_address) as id,ca.first_name, ca.last_name, ca.phone, IFNULL(ca.alternate_phone, ""), ca.address1, ca.address2, ca.city, ca.is_default_billing, ca.is_default_shipping, r.name AS region, r.id_customer_address_region, postcode, country.id_country as country, adi.sms_opt, IFNULL(ca.address_type, 0)
             FROM customer_address ca JOIN country ON fk_country = id_country 
             LEFT JOIN customer_address_region r ON fk_customer_address_region=r.id_customer_address_region
             LEFT JOIN customer_additional_info adi ON adi.fk_customer=ca.fk_customer
@@ -84,8 +83,8 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	for rows.Next() {
 		var (
 			fname, lname, address1, address2, city, region, phone, altPhone, smsOpt []byte
-			id, isBilling, isShipping, customerAddressRegionId, country             uint32
-			postcode, isOffice                                                      int
+			id, isBilling, isShipping, customerAddressRegionId, country             []byte
+			postcode, isOffice                                                      []byte
 		)
 		ad := AddressResponse{}
 		encFields := EncryptedFields{}
@@ -96,35 +95,31 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 			continue
 		}
 
-		ad.Id = id
+		ad.Id = string(id)
 		ad.FirstName = string(fname)
 		ad.LastName = string(lname)
 		ad.Address1 = string(address1)
 		ad.Address2 = string(address2)
 		ad.City = string(city)
 		ad.RegionName = string(region)
-		ad.AddressRegion = customerAddressRegionId
-		ad.PostCode = postcode
-		ad.Country = country
-		ad.IsOffice = isOffice
+		ad.AddressRegion = string(customerAddressRegionId)
+		ad.PostCode = string(postcode)
+		ad.Country = string(country)
+		ad.IsOffice = string(isOffice)
 
-		if isBilling == 0 && isShipping == 0 {
+		if string(isBilling) == "0" && string(isShipping) == "0" {
 			ad.AddressType = appconstant.OTHER
-		} else if isBilling == 1 {
+		} else if string(isBilling) == "1" {
 			ad.AddressType = appconstant.BILLING
-		} else if isShipping == 1 {
+		} else if string(isShipping) == "1" {
 			ad.AddressType = appconstant.SHIPPING
 		} else {
 			ad.AddressType = appconstant.OTHER
 		}
 
-		sms, err := strconv.Atoi(string(smsOpt))
-		if err != nil {
-			logger.Warning(fmt.Println("Can not convert string to int while getting customer_address list column 'sms_opt'", err))
-		}
-		ad.SmsOpt = sms
+		ad.SmsOpt = string(smsOpt)
 
-		encFields.Id = id
+		encFields.Id = string(id)
 		encFields.EncryptedPhone = string(phone)
 		encFields.EncryptedAlternatePhone = string(altPhone)
 		encryptedFields = append(encryptedFields, encFields)
@@ -230,7 +225,7 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 		if a.Address2 != "" {
 			sql = sql + `, address2 = '` + a.Address2 + `'`
 		}
-		if a.AlternatePhone != 0 {
+		if a.AlternatePhone != "" {
 			sql = sql + `, alternate_phone = '` + a.EncryptedAlternatePhone + `'`
 		}
 
