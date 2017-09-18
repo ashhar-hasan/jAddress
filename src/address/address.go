@@ -51,7 +51,7 @@ func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlo
 	debugInfo := new(Debug)
 	addressListResult, err := GetAddressList(params, debugInfo)
 	if err != nil {
-		logger.Error(fmt.Println("unable to get address"))
+		logger.Error("unable to get address")
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
 	addDebugContents(io, debugInfo)

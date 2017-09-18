@@ -90,11 +90,12 @@ func Decrypt(encryptedData []string, debugInfo *Debug) []string {
 		res, err = encryptServiceObj.DecryptData(encryptedData, debugInfo)
 		if err != nil {
 			logger.Error("Decrypt: Data Decryption Error ", err.Error())
+			return data
 		}
 		data, err = getDataFromServiceResponse(res)
 		if err != nil {
-			data = append(data, "")
 			logger.Error(fmt.Sprintf("Decrypt: getDataFromServiceResponse() Error:: %+v", err))
+			return data
 		}
 	}
 
@@ -134,7 +135,7 @@ func getDataFromServiceResponse(body []byte) (data []string, err error) {
 	return res, nil
 }
 
-func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) []DecryptedFields {
+func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) ([]DecryptedFields, error) {
 	var (
 		encryptedPhoneString    []string
 		encryptedAltPhoneString []string
@@ -147,22 +148,25 @@ func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *
 	decryptedPhone := Decrypt(encryptedPhoneString, debug)
 	decryptedAltPhone := Decrypt(encryptedAltPhoneString, debug)
 	res := make([]DecryptedFields, 0)
-	for k, v := range ef {
-		if decryptedPhone[k] != "" {
-			dp = decryptedPhone[k]
-		} else {
-			dp = ""
-		}
+	if len(decryptedPhone) > 0 {
+		for k, v := range ef {
+			if decryptedPhone[k] != "" {
+				dp = decryptedPhone[k]
+			} else {
+				dp = ""
+			}
 
-		if decryptedAltPhone[k] != "" {
-			dap = decryptedAltPhone[k]
-		} else {
-			dap = ""
+			if decryptedAltPhone[k] != "" {
+				dap = decryptedAltPhone[k]
+			} else {
+				dap = ""
+			}
 		}
-		res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
 	}
-	fmt.Printf("%v+", res)
-	return res
+	if len(res) == 0 {
+		return nil, errors.New("Error in Decrypting Encryption Fields")
+	}
+	return res, nil
 }
 
 func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]AddressResponse) {

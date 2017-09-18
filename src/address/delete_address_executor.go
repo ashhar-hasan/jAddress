@@ -56,7 +56,6 @@ func (a DeleteAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkF
 		logger.Error(fmt.Sprintf("error in setting add address result to workflow data- %v", err), rc)
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
-
 	return io, nil
 
 }
