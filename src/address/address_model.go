@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
 	"github.com/jabong/florest-core/src/components/sqldb"
@@ -133,7 +134,11 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	}
 
 	if len(encryptedFields) != 0 {
-		res := decryptEncryptedFields(encryptedFields, params, debug)
+		res, err := decryptEncryptedFields(encryptedFields, params, debug)
+		if err != nil {
+			logger.Error("PhoneDecryption: Error while parsing Decryption Service Response")
+			return nil, &constants.AppError{Code: constants.ResourceErrorCode, Message: "DecryptEncryptedFields: Error while parsing Decryption Service Response"}
+		}
 		mergeDecryptedFieldsWithAddressResult(res, &addresses)
 	}
 
@@ -280,7 +285,7 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	return nil
 }
 
-func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug) (err error) {
+func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e chan error) (err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_model-deleteAddress")
@@ -296,23 +301,32 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug) (err
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddress:Sql", Value: sql})
 
 	txObj, _ := db.GetTxnObj()
-	r, err1 := txObj.Exec(sql, addressId, userId)
-	fmt.Println(r)
+	deleteResult, err1 := txObj.Exec(sql, addressId, userId)
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("Error while delete user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
+		e <- err1
+	}
+	rowsaffected, _ := deleteResult.RowsAffected()
+	if rowsaffected == 0 {
+		txObj.Rollback()
+		addressNotFoundError := errors.New("Address not found")
+		e <- addressNotFoundError
+		return
 	}
 	err = txObj.Commit()
 	if err != nil {
 		txObj.Rollback()
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "Delete::CommitTransactionError:", Value: err.Error()})
-		return err
+		e <- err
+		return
 	}
 	if cacheErr != nil {
 		key := GetAddressListCacheKey(userId)
 		invalidateCache(key)
 	}
-	return nil
+	e <- nil
+	return
 }
 
 func getAddressTypeSql(ty string) string {

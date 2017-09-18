@@ -45,7 +45,7 @@
       }
     },
     "EncryptionServiceConfig": {
-      "Host": "http://180.179.143.72:8098",
+      "Host": "http://180.179.157.160:8098",
       "ReqTimeout": "2000"
     },
     "Cache": {

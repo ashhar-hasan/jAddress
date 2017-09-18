@@ -149,8 +149,14 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		err := invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 	}
-	go deleteAddress(params, cacheErr, debugInfo) //Delete Adddress From DB
+	e := make(chan error, 0)
 
+	go deleteAddress(params, cacheErr, debugInfo, e) //Delete Adddress From DB
+
+	err := <-e
+	if err != nil {
+		return nil, err
+	}
 	a.AddressList = addressResult
 	return a, nil
 }

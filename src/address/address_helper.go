@@ -91,11 +91,12 @@ func Decrypt(encryptedData []string, debugInfo *Debug) []string {
 		res, err = encryptServiceObj.DecryptData(encryptedData, debugInfo)
 		if err != nil {
 			logger.Error("Decrypt: Data Decryption Error ", err.Error())
+			return data
 		}
 		data, err = getDataFromServiceResponse(res)
 		if err != nil {
-			data = append(data, "")
 			logger.Error(fmt.Sprintf("Decrypt: getDataFromServiceResponse() Error:: %+v", err))
+			return data
 		}
 	}
 
@@ -135,7 +136,7 @@ func getDataFromServiceResponse(body []byte) (data []string, err error) {
 	return res, nil
 }
 
-func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) []DecryptedFields {
+func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *Debug) ([]DecryptedFields, error) {
 	rc := params.RequestContext
 	var (
 		encryptedPhoneString    []string
@@ -150,27 +151,32 @@ func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *
 	decryptedPhone := Decrypt(encryptedPhoneString, debug)
 	decryptedAltPhone := Decrypt(encryptedAltPhoneString, debug)
 	res := make([]DecryptedFields, 0)
-	for k, v := range ef {
-		if decryptedPhone[k] != "" {
-			dp, err = strconv.ParseInt(decryptedPhone[k], 10, 64)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Can not parse 'phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedPhone, v.Id, err), rc)
+	if len(decryptedPhone) > 0 {
+		for k, v := range ef {
+			if decryptedPhone[k] != "" {
+				dp, err = strconv.ParseInt(decryptedPhone[k], 10, 64)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Can not parse 'phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedPhone, v.Id, err), rc)
+				}
+			} else {
+				dp = 0
 			}
-		} else {
-			dp = 0
-		}
 
-		if decryptedAltPhone[k] != "" {
-			dap, err = strconv.ParseInt(decryptedAltPhone[k], 10, 64)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Can not parse 'alternate phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedAlternatePhone, v.Id, err), rc)
+			if decryptedAltPhone[k] != "" {
+				dap, err = strconv.ParseInt(decryptedAltPhone[k], 10, 64)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Can not parse 'alternate phone': %s for AddressId: %d into int64. ERROR:%v", v.EncryptedAlternatePhone, v.Id, err), rc)
+				}
+			} else {
+				dap = 0
 			}
-		} else {
-			dap = 0
+			res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
 		}
-		res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
 	}
-	return res
+	if len(res) == 0 {
+		return nil, errors.New("Error in Decrypting Encryption Fields")
+	}
+	return res, nil
 }
 
 func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]AddressResponse) {
