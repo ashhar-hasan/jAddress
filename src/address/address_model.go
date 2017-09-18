@@ -389,3 +389,42 @@ func validateAddress(address string) string {
 	}
 	return flag
 }
+
+func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
+	db, err := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_model-updateType")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_model-updateType"})
+	}()
+	rc := params.RequestContext
+	userId := rc.UserID
+	updateTypeField := getAddressTypeSql(params.QueryParams.AddressType)
+	query := `UPDATE customer_address SET ` + updateTypeField + ` WHERE fk_customer = ? and id_customer_address= ?`
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateType:Sql", Value: query})
+	txObj, _ := db.GetTxnObj()
+	updateTypeResult, err1 := txObj.Exec(query, userId, params.QueryParams.AddressId)
+	if err1 != nil {
+		txObj.Rollback()
+		key := GetAddressListCacheKey(userId)
+		invalidateCache(key)
+		logger.Error(fmt.Sprintf("Error while updating  address type|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
+		e <- err1
+	}
+	rowsaffected, _ := updateTypeResult.RowsAffected()
+	if rowsaffected == 0 {
+		txObj.Rollback()
+		addressNotFoundError := errors.New("Address not found")
+		e <- addressNotFoundError
+		return
+	}
+	err1 = txObj.Commit()
+	if err1 != nil {
+		txObj.Rollback()
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "UpdateType::CommitTransactionError:", Value: err1.Error()})
+		e <- err1
+		return
+	}
+	e <- nil
+	return
+}

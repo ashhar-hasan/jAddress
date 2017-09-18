@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"strconv"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -427,6 +428,55 @@ func invalidateCache(key string) error {
 	err := cacheObj.Delete(key)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#updateTypeInCache")
+
+	defer func() {
+		p.EndProfileWithMetric([]string{"AddressHelper#updateTypeInCache"})
+	}()
+
+	rc := params.RequestContext
+	userID := rc.UserID
+	addressID := params.QueryParams.AddressId
+	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+
+	if err != nil {
+		msg := "Error while fetching address list from cache"
+		logger.Error(msg)
+		return errors.New(msg)
+	}
+	var (
+		index int
+		flag  bool
+	)
+
+	for key, value := range addressList {
+		if value.Id == strconv.Itoa(addressID) {
+			index = key
+			flag = true
+			break
+		}
+	}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:index", Value: fmt.Sprintf("%d", index)})
+	if flag {
+		// addressList[index].AddressType = params.QueryParams.Address.AddressType
+		if params.QueryParams.AddressType == appconstant.BILLING {
+			addressList[index].IsDefaultBilling = "1"
+		} else {
+			addressList[index].IsDefaultShipping = "1"
+		}
+	}
+	err = saveDataInCache(userID, "address", addressList)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
+	if err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:saveDataInCache.Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("udpateTypeInCache: Could not update address in Cache"), rc)
+		return errors.New("Could not update address type in Cache")
 	}
 	return nil
 }

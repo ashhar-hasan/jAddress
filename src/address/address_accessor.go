@@ -114,7 +114,28 @@ func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 	a := new(AddressResult)
 	return a, nil
 }
+func UpdateType(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-UpdateType")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-UpdateType"})
+	}()
+	cacheErr := updateTypeInCache(params, debugInfo)
+	if cacheErr != nil {
+		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
+		err := invalidateCache(cacheKey)
+		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s %v", cacheKey, err))
+	}
+	e := make(chan error, 0)
+	go updateType(params, debugInfo, e)
 
+	err := <-e
+	if err != nil {
+		return nil, err
+	}
+	a := new(AddressResult)
+	return a, nil
+}
 func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_accessor-AddAddress")
