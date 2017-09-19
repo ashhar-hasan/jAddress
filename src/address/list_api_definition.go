@@ -12,10 +12,10 @@ import (
 	"github.com/jabong/florest-core/src/core/common/versionmanager"
 )
 
-type AddressAPI struct {
+type ListAddressAPI struct {
 }
 
-func (a *AddressAPI) GetVersion() versionmanager.Version {
+func (a *ListAddressAPI) GetVersion() versionmanager.Version {
 	return versionmanager.Version{
 		Resource: "ADDRESS",
 		Version:  "V1",
@@ -25,7 +25,7 @@ func (a *AddressAPI) GetVersion() versionmanager.Version {
 	}
 }
 
-func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
+func (a *ListAddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	logger.Info("Address Pipeline Creation begin")
 
 	addressOrchestrator := new(orchestrator.Orchestrator)
@@ -81,14 +81,14 @@ func (a *AddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	return *addressOrchestrator
 }
 
-func (a *AddressAPI) GetHealthCheck() healthcheck.HCInterface {
+func (a *ListAddressAPI) GetHealthCheck() healthcheck.HCInterface {
 	return new(AddressHealthCheck)
 }
 
-func (a *AddressAPI) Init() {
+func (a *ListAddressAPI) Init() {
 	//api initialization should come here
 }
 
-func (a *AddressAPI) GetRateLimiter() ratelimiter.RateLimiter {
+func (a *ListAddressAPI) GetRateLimiter() ratelimiter.RateLimiter {
 	return nil
 }
