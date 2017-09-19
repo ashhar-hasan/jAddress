@@ -85,7 +85,8 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		var (
 			fname, lname, address1, address2, city, region, phone, altPhone, smsOpt                     []byte
 			id, isBilling, isShipping, fkCustomer, customerAddressRegionId, country, postcode, isOffice []byte
-			createdAt, updatedAt                                                                        time.Time
+			createdAt                                                                                   []byte
+			updatedAt                                                                                   time.Time
 		)
 		ad := AddressResponse{}
 		encFields := EncryptedFields{}
@@ -109,7 +110,13 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		ad.IsDefaultBilling = string(isBilling)
 		ad.IsDefaultShipping = string(isShipping)
 		ad.FkCustomer = string(fkCustomer)
-		ad.CreatedAt = createdAt.Format(appconstant.DATETIME_FORMAT)
+		createdAtStr := string(createdAt)
+		if createdAtStr == "" {
+			ad.CreatedAt = ""
+		} else {
+			createdAtTime, _ := time.Parse(time.RFC3339, string(createdAt))
+			ad.CreatedAt = createdAtTime.Format(appconstant.DATETIME_FORMAT)
+		}
 		ad.UpdatedAt = updatedAt.Format(appconstant.DATETIME_FORMAT)
 		ad.SmsOpt = string(smsOpt)
 
