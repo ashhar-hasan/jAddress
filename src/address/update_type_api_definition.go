@@ -1,6 +1,7 @@
 package address
 
 import (
+	"common/appconstant"
 	"fmt"
 
 	"github.com/jabong/florest-core/src/common/constants"
@@ -16,11 +17,11 @@ type UpdateTypeAPI struct {
 
 func (a *UpdateTypeAPI) GetVersion() versionmanager.Version {
 	return versionmanager.Version{
-		Resource: "UPDATETYPE",
+		Resource: "ADDRESS",
 		Version:  "V1",
 		Action:   "PUT",
 		BucketID: constants.OrchestratorBucketDefaultValue,
-		Path:     "",
+		Path:     "{" + appconstant.URLPARAM_ADDRESSTYPE + "}/{" + appconstant.URLPARAM_ADDRESSID + "}",
 	}
 }
 
@@ -48,6 +49,16 @@ func (a *UpdateTypeAPI) GetOrchestrator() orchestrator.Orchestrator {
 	updateTypeExecutor := new(UpdateTypeExecutor)
 	updateTypeExecutor.SetID("3")
 	err = updateTypeWorkflow.AddExecutionNode(updateTypeExecutor)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
+
+	err = updateTypeWorkflow.AddConnection(queryTermEnhancer, queryTermValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
+
+	err = updateTypeWorkflow.AddConnection(queryTermValidator, updateTypeExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
