@@ -18,13 +18,10 @@ func Initialise() {
 	var err error
 	c := config.GlobalAppConfig.ApplicationConfig
 	appConfig, _ := c.(*appconfig.AddressServiceConfig)
-	encConfHost := appConfig.EncryptionServiceConfig.Host
-	encConfReqTimeOut := appConfig.EncryptionServiceConfig.ReqTimeout
-	encryptServiceObj, err = InitEncryptionService(encConfHost, encConfReqTimeOut)
+	encryptServiceObj, err = InitEncryptionService(appConfig.EncryptionServiceConfig.Host, appConfig.EncryptionServiceConfig.ReqTimeout)
 	if err != nil {
 		panic("Failed to initialise Encryption Service" + err.Error())
 	}
-
 	logger.Info(fmt.Sprintf("Address Service Accessor Initialize"))
 }
 
