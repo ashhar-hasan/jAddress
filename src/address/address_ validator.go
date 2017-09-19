@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -84,13 +85,6 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 	address := AddressRequest{}
 	for key, value := range valMap {
 		switch key {
-		case (appconstant.ADDRESS_ID):
-			id, ok := value.(float64)
-			if !isIntegral(id) || !ok {
-				logger.Error(fmt.Sprintf("Field Name 'id' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'id' is excpected to be integer type")
-			}
-			address.Id = strconv.FormatInt(int64(id), 10)
 		case appconstant.FIRST_NAME:
 			str, ok := value.(string)
 			if !ok {
@@ -120,29 +114,25 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			}
 			address.Address2 = sanitize(str, false)
 		case appconstant.PHONE:
-			mobile, ok := value.(float64)
-			if !isIntegral(mobile) || !ok {
-				logger.Error(fmt.Sprintf("Field Name 'phone' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'phone' is excpected to be integer type")
+			mobile, ok := value.(string)
+			if !isIntegral(strings.TrimPrefix(mobile, "+")) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'phone' is excpected to be of the form +digits"), params.RequestContext)
+				return errors.New("Field Name 'phone' is excpected to be of the form +digits")
 			}
-			s := fmt.Sprintf("%d", uint64(mobile))
-			if len(s) != 10 {
-				return errors.New("invalid phone number - length should be 10 digits")
+			if len(mobile) != 13 {
+				return errors.New("invalid phone number - length should be 10 digits excluding country code")
 			}
-
-			address.Phone = strconv.FormatInt(int64(mobile), 10)
-
+			address.Phone = mobile
 		case appconstant.ALTERNATE_PHONE:
-			altPh, ok := value.(float64)
-			if !isIntegral(altPh) || !ok {
-				logger.Error(fmt.Sprintf("Field Name 'alt_phone' is excpected to be integer type"), params.RequestContext)
-				return errors.New("Field Name 'alt_phone' is excpected to be integer type")
+			altPh, ok := value.(string)
+			if !isIntegral(strings.TrimPrefix(altPh, "+")) || !ok {
+				logger.Error(fmt.Sprintf("Field Name 'alt_phone' is excpected to be to be of the form +digits"), params.RequestContext)
+				return errors.New("Field Name 'alt_phone' is excpected to be to be of the form +digits")
 			}
-			s := fmt.Sprintf("%d", uint64(altPh))
-			if len(s) != 10 {
-				return errors.New("invalid alternate phone - length should be 10 digits")
+			if len(altPh) != 13 {
+				return errors.New("invalid alternate phone - length should be 10 digits excluding country code")
 			}
-			address.AlternatePhone = strconv.FormatInt(int64(altPh), 10)
+			address.AlternatePhone = altPh
 		case appconstant.CITY:
 			str, ok := value.(string)
 			if !ok {
@@ -153,94 +143,66 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 		case appconstant.REGION:
 			address.RegionName = value.(string)
 		case appconstant.ADDRESS_REGION:
-			addressRegionID, ok := value.(float64)
+			addressRegionID, ok := value.(string)
 			if !isIntegral(addressRegionID) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'address_region' is excpected to be integer type"), params.RequestContext)
 				return errors.New("Field Name 'address_region' is excpected to be integer type")
 			}
-			logger.Info(fmt.Sprintf("AddressRegion Id after converting to uint32 is: %d", uint32(addressRegionID)), params.RequestContext)
-			address.AddressRegion = strconv.Itoa(int(addressRegionID))
+			address.AddressRegion = addressRegionID
 		case appconstant.POSTCODE:
-			p, ok := value.(float64)
+			p, ok := value.(string)
 			if !isIntegral(p) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'postcode' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'postcode' is excpected to be int type")
 			}
-			pc := fmt.Sprintf("%d", int(p))
-			if len(pc) != 6 {
+			if len(p) != 6 {
 				return errors.New("Invalid postcode")
 			}
-			address.PostCode = strconv.Itoa(int(p))
+			address.PostCode = p
 		case appconstant.SMS_OPT:
-			sms, ok := value.(float64)
+			sms, ok := value.(string)
 			if !isIntegral(sms) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'sms_opt' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'sms_opt' is excpected to be int type")
 			}
-			str := int(sms)
+			str, _ := strconv.Atoi(sms)
 			if str != 0 && str != 1 {
 				logger.Error(fmt.Sprintf("Invalid Value in 'sms_opt' field - should be 0 or 1"), params.RequestContext)
 				return errors.New("Invalid Value in 'sms_opt' field - should be 0 or 1")
 			}
-			address.SmsOpt = strconv.Itoa(str)
+			address.SmsOpt = sms
 		case appconstant.IS_OFFICE:
 			address.IsOffice = "0"
-			isOffice, ok := value.(float64)
+			isOffice, ok := value.(string)
 			if !isIntegral(isOffice) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'is_office' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'is_office' is excpected to be int type")
 			}
-			str := int(isOffice)
+			str, _ := strconv.Atoi(isOffice)
 			if str != 0 && str != 1 {
 				logger.Error(fmt.Sprintf("Invalid Value in 'is_office' field - should be 0 or 1"), params.RequestContext)
 				return errors.New("Invalid Value in 'is_office' field - should be 0 or 1")
 			}
-			address.IsOffice = strconv.Itoa(str)
+			address.IsOffice = isOffice
 		case appconstant.COUNTRY:
-			country, ok := value.(float64)
+			country, ok := value.(string)
 			if !isIntegral(country) || !ok {
 				logger.Error(fmt.Sprintf("Field Name 'country' is excpected to be int type"), params.RequestContext)
 				return errors.New("Field Name 'country' is excpected to be int type")
 			}
-			address.Country = strconv.Itoa(int(country))
-		case appconstant.ADDRESS_TYPE:
-			addressType, err := validateAddressType(value)
-			if err != nil {
-				logger.Error(fmt.Sprintf(err.Error()), params.RequestContext)
-				return err
-			}
-			address.AddressType = addressType
-		case appconstant.PARAM_REQ:
-			str, ok := value.(string)
-			if !ok {
-				logger.Error(fmt.Sprintf("Field Name 'Req' is excpected to be string type"), params.RequestContext)
-				return errors.New("Field Name 'Req' is excpected to be string type")
-			}
-			if str != "" && str != appconstant.UPDATE_TYPE {
-				logger.Error(fmt.Sprintf("Incorrect value in 'Req' field - it should either be \"\" or \"update_type\""), params.RequestContext)
-				return errors.New("Incorrect value in 'Req' field - it should either be \"\" or \"update_type\"")
-			}
-			address.Req = str
-
+			address.Country = country
 		default:
 			break
 		}
 	}
 	if httpVerb == "PUT" {
-		if address.Req != "" {
-			if address.Id == "" || address.AddressType == "" {
-				return errors.New("Required parameters are missing")
-			}
-		} else {
-			// TODO: Tell what params are missing
-			if address.Id == "" ||
-				address.FirstName == "" ||
-				address.Address1 == "" ||
-				address.City == "" ||
-				address.PostCode == "" ||
-				address.AddressRegion == "" {
-				return errors.New("Required parameters are missing")
-			}
+		// TODO: Tell what params are missing
+		if address.FirstName == "" ||
+			address.Address1 == "" ||
+			address.City == "" ||
+			address.PostCode == "" ||
+			address.AddressRegion == "" {
+			return errors.New("Required parameters are missing")
 		}
 	} else if httpVerb == "POST" {
 		// TODO: Tell what params are missing
@@ -257,6 +219,10 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 	return nil
 }
 
-func isIntegral(val float64) bool {
-	return val == float64(int(val))
+func isIntegral(val string) bool {
+	fl, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return false
+	}
+	return fl == float64(int(fl))
 }

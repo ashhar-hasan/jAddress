@@ -2,7 +2,6 @@ package address
 
 import (
 	"common/appconstant"
-	"fmt"
 
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -44,12 +43,10 @@ func (a DataEncryptor) Execute(io workflow.WorkFlowData) (workflow.WorkFlowData,
 		return io, &constants.AppError{Code: constants.ParamsInValidErrorCode, Message: "invalid type of params"}
 	}
 	var phoneStr []string
-	str := fmt.Sprintf("%d", params.QueryParams.Address.Phone)
-	phoneStr = append(phoneStr, str)
+	phoneStr = append(phoneStr, params.QueryParams.Address.Phone)
 
-	str = fmt.Sprintf("%d", params.QueryParams.Address.AlternatePhone)
-	if str != "0" {
-		phoneStr = append(phoneStr, str)
+	if params.QueryParams.Address.AlternatePhone != "" {
+		phoneStr = append(phoneStr, params.QueryParams.Address.AlternatePhone)
 	}
 
 	debugInfo := new(Debug)

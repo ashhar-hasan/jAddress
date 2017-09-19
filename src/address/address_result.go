@@ -23,24 +23,21 @@ type DecryptedFields struct {
 }
 
 type AddressRequest struct {
-	Id                      string
 	FirstName               string
 	LastName                string
 	Address1                string
 	Address2                string
 	City                    string
 	RegionName              string
-	EncryptedPhone          string
-	EncryptedAlternatePhone string
-	AddressType             string
+	IsOffice                string `json:"AddressType"`
 	AddressRegion           string
 	Country                 string
 	Phone                   string
 	AlternatePhone          string
+	EncryptedPhone          string
+	EncryptedAlternatePhone string
 	PostCode                string
-	SmsOpt                  string
-	IsOffice                string
-	Req                     string
+	SmsOpt                  string `json:"Sms_opt"`
 }
 
 type AddressResponse struct {

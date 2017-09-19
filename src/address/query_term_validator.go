@@ -80,23 +80,10 @@ func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error
 		}
 	}
 	params.QueryParams.Offset = offset
-	if httpReq.FormValue(appconstant.URLPARAM_ADDRESSTYPE) != "" {
-		addressType := utilHttp.GetStringParamFields(httpReq, appconstant.URLPARAM_ADDRESSTYPE)
-		res, err := validateAddressType(addressType)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Invalid address type. Possible types are all, billiing, shipping, other"), params.RequestContext)
-			return err
-		}
-		params.QueryParams.AddressType = res
-	}
 	return nil
 }
 
-func validateAddressType(ty interface{}) (addressType string, err error) {
-	str, ok := ty.(string)
-	if !ok {
-		return addressType, errors.New("Field Name 'addressType' is expected to be string")
-	}
+func validateAddressType(str string) (addressType string, err error) {
 	if str == appconstant.BILLING {
 		addressType = appconstant.BILLING
 	} else if str == appconstant.SHIPPING {

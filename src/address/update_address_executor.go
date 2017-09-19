@@ -47,7 +47,7 @@ func (a UpdateAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkF
 	debugInfo := new(Debug)
 	var err error
 
-	if params.QueryParams.Address.Id != "" {
+	if params.QueryParams.AddressId != 0 {
 		addressResult, err = UpdateAddress(params, debugInfo)
 		addDebugContents(io, debugInfo)
 		if err != nil {

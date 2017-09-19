@@ -1,5 +1,10 @@
 package appconstant
 
+//Time constants
+const (
+	DATETIME_FORMAT = "2006-01-02 15:04:05"
+)
+
 //URL Params for address service
 const (
 	SESSION_ID        = "X-Jabong-SessionId"
@@ -13,9 +18,9 @@ const (
 const (
 	URLPARAM_LIMIT       = "limit"
 	URLPARAM_OFFSET      = "offset"
-	URLPARAM_ADDRESSID   = "id"
+	URLPARAM_ADDRESSID   = "addressId"
 	URLPARAM_POSTCODE    = "postcode"
-	URLPARAM_ADDRESSTYPE = "type"
+	URLPARAM_ADDRESSTYPE = "addressType"
 )
 
 const (
@@ -46,20 +51,17 @@ const (
 )
 
 const (
-	ADDRESS_ID      = "id"
-	FIRST_NAME      = "firstname"
-	LAST_NAME       = "lastname"
-	PHONE           = "phone"
-	ALTERNATE_PHONE = "alt_phone"
-	ADDRESS1        = "address1"
-	ADDRESS2        = "address2"
-	CITY            = "city"
-	REGION          = "state"
-	ADDRESS_REGION  = "address_region"
-	ADDRESS_TYPE    = "address_type"
-	POSTCODE        = "postcode"
-	COUNTRY         = "country"
-	SMS_OPT         = "sms_opt"
-	IS_OFFICE       = "is_office"
-	PARAM_REQ       = "req"
+	FIRST_NAME      = "FirstName"
+	LAST_NAME       = "LastName"
+	PHONE           = "Phone"
+	ALTERNATE_PHONE = "AlternatePhone"
+	ADDRESS1        = "Address1"
+	ADDRESS2        = "Address2"
+	CITY            = "City"
+	REGION          = "RegionName"
+	ADDRESS_REGION  = "AddressRegion"
+	IS_OFFICE       = "AddressType"
+	POSTCODE        = "PostCode"
+	COUNTRY         = "Country"
+	SMS_OPT         = "Sms_opt"
 )

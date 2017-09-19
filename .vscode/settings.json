@@ -11,7 +11,7 @@
     "go.formatTool": "goimports",
     "go.inferGopath": false,
     "go.testOnSave": false,
-    "go.coverOnSave": true,
+    "go.coverOnSave": false,
     "go.coverageDecorator": "gutter",
     "go.useCodeSnippetsOnFunctionSuggest": true,
     "go.autocompleteUnimportedPackages": true,

@@ -4,7 +4,7 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
-	"net/http"
+	"strconv"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
@@ -52,7 +52,6 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
 	sessionID, err := io.ExecContext.Get(appconstant.SESSION_ID)
-	httpReq := appHTTPReq.OriginalRequest
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
 	}
@@ -73,8 +72,12 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	updateParamsWithBuckets(&params, io)
 	updateParamsWithRequestContext(&params, io)
 
-	if appHTTPReq.HTTPVerb == "DELETE" {
-		derr1 := validateAndSetParams(&params, httpReq)
+	if appHTTPReq.HTTPVerb == "DELETE" || appHTTPReq.HTTPVerb == "PUT" || appHTTPReq.HTTPVerb == "GET" {
+		// Update default billing/shipping address case
+		if len(*appHTTPReq.PathParameters) == 2 {
+			validateAndSetParamsForUpdate(&params, appHTTPReq)
+		}
+		derr1 := validateAndSetParams(&params, appHTTPReq)
 		if derr1 != nil {
 			return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr1.Error()}
 		}
@@ -108,11 +111,39 @@ func updateParamsWithRequestContext(params *RequestParams, io workflow.WorkFlowD
 	}
 }
 
-func validateAndSetParams(params *RequestParams, httpReq *http.Request) error {
-	val, err := utilHttp.GetIntParamFields(httpReq, appconstant.URLPARAM_ADDRESSID)
-	if err != nil {
-		return errors.New("Id is missing  or not a number")
+func validateAndSetParams(params *RequestParams, httpReq *utilHttp.Request) error {
+	if httpReq.HTTPVerb == "GET" {
+		val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSTYPE)
+		if val == "" {
+			val = appconstant.ALL
+		}
+		params.QueryParams.AddressType = val
+		return nil
 	}
-	params.QueryParams.AddressId = val
+	val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSID)
+	addressID, err := strconv.Atoi(val)
+	if err != nil {
+		return errors.New("Id is missing or not a number")
+	}
+	params.QueryParams.AddressId = addressID
+	return nil
+}
+
+func validateAndSetParamsForUpdate(params *RequestParams, httpReq *utilHttp.Request) error {
+	val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSID)
+	addressID, err := strconv.Atoi(val)
+	if err != nil {
+		return errors.New("Id is missing or not a number")
+	}
+	params.QueryParams.AddressId = addressID
+	val = httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSTYPE)
+	if val == "" {
+		return errors.New("Address Type is missing")
+	}
+	addressType, _ := validateAddressType(val)
+	if addressType == appconstant.ALL || addressType == appconstant.OTHER {
+		return errors.New("Address Type can be only be billing or shipping")
+	}
+	params.QueryParams.AddressType = addressType
 	return nil
 }

@@ -1,6 +1,7 @@
 package address
 
 import (
+	"common/appconstant"
 	"fmt"
 
 	"github.com/jabong/florest-core/src/common/constants"
@@ -20,7 +21,7 @@ func (a *UpdateAddressAPI) GetVersion() versionmanager.Version {
 		Version:  "V1",
 		Action:   "PUT",
 		BucketID: constants.OrchestratorBucketDefaultValue, //todo - should it be a constant
-		Path:     "",
+		Path:     "{" + appconstant.URLPARAM_ADDRESSID + "}",
 	}
 }
 

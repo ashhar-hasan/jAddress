@@ -44,8 +44,7 @@ func (n UpdateTypeExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 	}
 
 	debugInfo := new(Debug)
-	addressResult := new(AddressResult)
-	addressResult, err := UpdateType(params, debugInfo)
+	_, err := UpdateType(params, debugInfo)
 	addDebugContents(io, debugInfo)
 	if err != nil {
 		logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
@@ -57,5 +56,4 @@ func (n UpdateTypeExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
 	return io, nil
-
 }

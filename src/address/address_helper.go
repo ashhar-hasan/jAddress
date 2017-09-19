@@ -162,6 +162,7 @@ func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *
 			} else {
 				dap = ""
 			}
+			res = append(res, DecryptedFields{Id: v.Id, DecryptedPhone: dp, DecryptedAlternatePhone: dap})
 		}
 	}
 	if len(res) == 0 {
@@ -225,7 +226,7 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 }
 
 //saveDataInCache save data in cache
-func saveDataInCache(id string, ty string, value interface{}) error {
+func saveDataInCache(id string, value interface{}) error {
 	p := profiler.NewProfiler()
 	p.StartProfile("AddressHelper#saveDataInCache")
 
@@ -240,11 +241,7 @@ func saveDataInCache(id string, ty string, value interface{}) error {
 	}
 
 	var cacheKey string
-	if ty == "address" {
-		cacheKey = GetAddressListCacheKey(id)
-	} else if ty == "locality" {
-		cacheKey = ""
-	}
+	cacheKey = GetAddressListCacheKey(id)
 	str, _ := json.Marshal(value)
 
 	item := cache.Item{}
@@ -284,7 +281,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 		flag  bool
 	)
 	for key, value := range addressList {
-		if value.Id == address.Id {
+		if value.Id == strconv.Itoa(params.QueryParams.AddressId) {
 			index = key
 			flag = true
 			break
@@ -292,38 +289,32 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 	}
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:index", Value: fmt.Sprintf("%d", index)})
 	if flag {
-		if params.QueryParams.Address.Req == appconstant.UPDATE_TYPE {
-			addressList[index].AddressType = params.QueryParams.Address.AddressType
-		} else {
-			addressList[index].FirstName = address.FirstName
-			addressList[index].Phone = address.Phone
-			addressList[index].Address1 = address.Address1
-			addressList[index].City = address.City
-			addressList[index].AddressRegion = address.AddressRegion
-			addressList[index].PostCode = address.PostCode
-			addressList[index].SmsOpt = address.SmsOpt
+		addressList[index].IsOffice = params.QueryParams.AddressType
+		addressList[index].FirstName = address.FirstName
+		addressList[index].Phone = address.Phone
+		addressList[index].Address1 = address.Address1
+		addressList[index].City = address.City
+		addressList[index].AddressRegion = address.AddressRegion
+		addressList[index].PostCode = address.PostCode
+		addressList[index].SmsOpt = address.SmsOpt
 
-			if address.Country != "" {
-				addressList[index].Country = address.Country
-			}
-			if address.RegionName != "" {
-				addressList[index].RegionName = address.RegionName
-			}
-			if address.LastName != "" {
-				addressList[index].LastName = address.LastName
-			}
-			if address.Address2 != "" {
-				addressList[index].Address2 = address.Address2
-			}
-			if address.AlternatePhone != "" {
-				addressList[index].AlternatePhone = address.AlternatePhone
-			}
-			if address.AddressType != "" {
-				addressList[index].AddressType = address.AddressType
-			}
+		if address.Country != "" {
+			addressList[index].Country = address.Country
+		}
+		if address.RegionName != "" {
+			addressList[index].RegionName = address.RegionName
+		}
+		if address.LastName != "" {
+			addressList[index].LastName = address.LastName
+		}
+		if address.Address2 != "" {
+			addressList[index].Address2 = address.Address2
+		}
+		if address.AlternatePhone != "" {
+			addressList[index].AlternatePhone = address.AlternatePhone
 		}
 	}
-	err = saveDataInCache(userID, "address", addressList)
+	err = saveDataInCache(userID, addressList)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 	if err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:saveDataInCache.Err", Value: err.Error()})
@@ -367,7 +358,7 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 		addressList = append(addressList[:index], addressList[index+1:]...)
 	}
 	addressList = append(addressList, address...)
-	err = saveDataInCache(userID, "address", addressList)
+	err = saveDataInCache(userID, addressList)
 
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 
@@ -408,7 +399,7 @@ func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address []
 	if flag {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:index", Value: fmt.Sprintf("%d", index)})
 		addressList = append(addressList[:index], addressList[index+1:]...)
-		err = saveDataInCache(userId, "address", addressList)
+		err = saveDataInCache(userId, addressList)
 		if err != nil {
 			logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
 			return address, errors.New("Could not update address list in Cache while deleting. " + err.Error())
@@ -471,7 +462,7 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 			addressList[index].IsDefaultShipping = "1"
 		}
 	}
-	err = saveDataInCache(userID, "address", addressList)
+	err = saveDataInCache(userID, addressList)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 	if err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:saveDataInCache.Err", Value: err.Error()})

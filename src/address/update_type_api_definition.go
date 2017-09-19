@@ -5,7 +5,9 @@ import (
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
+	"github.com/jabong/florest-core/src/common/ratelimiter"
 	"github.com/jabong/florest-core/src/core/common/orchestrator"
+	"github.com/jabong/florest-core/src/core/common/utils/healthcheck"
 	"github.com/jabong/florest-core/src/core/common/versionmanager"
 )
 
@@ -55,4 +57,16 @@ func (a *UpdateTypeAPI) GetOrchestrator() orchestrator.Orchestrator {
 	logger.Info(updateTypeOrchestrator.String())
 	logger.Info("Update Type Pipeline Created")
 	return *updateTypeOrchestrator
+}
+
+func (a *UpdateTypeAPI) GetHealthCheck() healthcheck.HCInterface {
+	return new(AddressHealthCheck)
+}
+
+func (a *UpdateTypeAPI) Init() {
+	//api initialization should come here
+}
+
+func (a *UpdateTypeAPI) GetRateLimiter() ratelimiter.RateLimiter {
+	return nil
 }
