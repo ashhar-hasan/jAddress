@@ -1,8 +1,8 @@
 package address
 
 type AddressResult struct {
-	Summery     AddressDetails    `json:"Summery,omitempty"`
-	AddressList []AddressResponse `json:"AddressList,omitempty"`
+	Summery     AddressDetails              `json:"Summery,omitempty"`
+	AddressList map[string]*AddressResponse `json:"AddressList,omitempty"`
 }
 
 type AddressDetails struct {

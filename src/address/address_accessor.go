@@ -5,6 +5,7 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/jabong/florest-core/src/common/config"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -38,7 +39,7 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 
 	var (
 		addressType   string = appconstant.ALL
-		addressResult []AddressResponse
+		addressResult map[string]*AddressResponse
 		err           error
 	)
 
@@ -57,25 +58,25 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	}
 	start := params.QueryParams.Offset
 	end := params.QueryParams.Offset + params.QueryParams.Limit
-	addressFiltered := make([]AddressResponse, 0)
+	addressFiltered := make(map[string]*AddressResponse, 0)
 
 	if params.QueryParams.AddressType == "all" || params.QueryParams.AddressType == "" {
 		if params.QueryParams.Limit != 0 {
 			addressFiltered = addressResult //[start:end]
 		}
 	} else {
-		for _, v := range addressResult {
+		for k, v := range addressResult {
 			if params.QueryParams.AddressType == "billing" {
 				if v.IsDefaultBilling == "1" {
-					addressFiltered = append(addressFiltered, v)
+					addressFiltered[k] = v
 				}
 			} else if params.QueryParams.AddressType == "shipping" {
 				if v.IsDefaultShipping == "1" {
-					addressFiltered = append(addressFiltered, v)
+					addressFiltered[k] = v
 				}
 			} else if params.QueryParams.AddressType == "other" {
 				if v.IsDefaultShipping == "0" && v.IsDefaultBilling == "0" {
-					addressFiltered = append(addressFiltered, v)
+					addressFiltered[k] = v
 				}
 			}
 		}
@@ -86,9 +87,17 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	if start > end {
 		start = end
 	}
-	addressResult = addressFiltered[start:end]
-	a.AddressList = addressResult
-	a.Summery = AddressDetails{Count: len(addressResult), Type: addressType}
+	keys := make([]string, 0)
+	for k, _ := range addressFiltered {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	temp := make(map[string]*AddressResponse)
+	for i := start; i < end; i++ {
+		temp[keys[i]] = addressFiltered[keys[i]]
+	}
+	a.AddressList = temp
+	a.Summery = AddressDetails{Count: len(temp), Type: addressType}
 	return a, nil
 }
 

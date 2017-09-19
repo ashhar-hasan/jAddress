@@ -46,7 +46,7 @@ func getRegionId(regionId string, debug *Debug) (id string, countryId string, er
 	return rid, countryId, nil
 }
 
-func getAddressList(params *RequestParams, addressId string, debug *Debug) (address []AddressResponse, err error) {
+func getAddressList(params *RequestParams, addressId string, debug *Debug) (address map[string]*AddressResponse, err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_model-getAddressList")
@@ -79,7 +79,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		return nil, e
 	}
 
-	addresses := make([]AddressResponse, 0)
+	addresses := make(map[string]*AddressResponse, 0)
 	encryptedFields := make([]EncryptedFields, 0)
 	for rows.Next() {
 		var (
@@ -88,7 +88,6 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 			createdAt                                                                                   []byte
 			updatedAt                                                                                   time.Time
 		)
-		ad := AddressResponse{}
 		encFields := EncryptedFields{}
 
 		err = rows.Scan(&id, &fname, &lname, &phone, &altPhone, &address1, &address2, &city, &isBilling, &isShipping, &fkCustomer, &createdAt, &updatedAt, &region, &customerAddressRegionId, &postcode, &country, &smsOpt, &isOffice)
@@ -96,38 +95,40 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 			logger.Warning(fmt.Println("Mysql Row Error while getting row from customer_address table", err))
 			continue
 		}
-		ad.Id = string(id)
-		ad.FirstName = string(fname)
-		ad.LastName = string(lname)
-		ad.Address1 = string(address1)
-		ad.Address2 = string(address2)
-		ad.City = string(city)
-		ad.RegionName = string(region)
-		ad.AddressRegion = string(customerAddressRegionId)
-		ad.PostCode = string(postcode)
-		ad.Country = string(country)
-		ad.IsOffice = string(isOffice)
-		ad.IsDefaultBilling = string(isBilling)
-		ad.IsDefaultShipping = string(isShipping)
-		ad.FkCustomer = string(fkCustomer)
+
+		resp := new(AddressResponse)
+
+		index := string(id)
+		resp.Id = index
+		resp.FirstName = string(fname)
+		resp.LastName = string(lname)
+		resp.Address1 = string(address1)
+		resp.Address2 = string(address2)
+		resp.City = string(city)
+		resp.RegionName = string(region)
+		resp.AddressRegion = string(customerAddressRegionId)
+		resp.PostCode = string(postcode)
+		resp.Country = string(country)
+		resp.IsOffice = string(isOffice)
+		resp.IsDefaultBilling = string(isBilling)
+		resp.IsDefaultShipping = string(isShipping)
+		resp.FkCustomer = string(fkCustomer)
 		createdAtStr := string(createdAt)
 		if createdAtStr == "" {
-			ad.CreatedAt = ""
+			resp.CreatedAt = ""
 		} else {
-			createdAtTime, _ := time.Parse(time.RFC3339, string(createdAt))
-			ad.CreatedAt = createdAtTime.Format(appconstant.DATETIME_FORMAT)
+			createdAtTime, _ := time.Parse(time.RFC3339, createdAtStr)
+			resp.CreatedAt = createdAtTime.Format(appconstant.DATETIME_FORMAT)
 		}
-		ad.UpdatedAt = updatedAt.Format(appconstant.DATETIME_FORMAT)
-		ad.SmsOpt = string(smsOpt)
+		resp.UpdatedAt = updatedAt.Format(appconstant.DATETIME_FORMAT)
+		resp.SmsOpt = string(smsOpt)
 
 		encFields.Id = string(id)
 		encFields.EncryptedPhone = string(phone)
 		encFields.EncryptedAlternatePhone = string(altPhone)
 		encryptedFields = append(encryptedFields, encFields)
-
-		addresses = append(addresses, ad)
+		addresses[index] = resp
 	}
-
 	if len(encryptedFields) != 0 {
 		res, err := decryptEncryptedFields(encryptedFields, params, debug)
 		if err != nil {

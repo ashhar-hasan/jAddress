@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"strconv"
+	"time"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
@@ -171,14 +171,11 @@ func decryptEncryptedFields(ef []EncryptedFields, params *RequestParams, debug *
 	return res, nil
 }
 
-func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *[]AddressResponse) {
+func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *map[string]*AddressResponse) {
 	val := (*address)
-	for k := range val {
-		temp := &val[k]
-		if temp.Id == ef[k].Id {
-			temp.Phone = ef[k].DecryptedPhone
-			temp.AlternatePhone = ef[k].DecryptedAlternatePhone
-		}
+	for i := 0; i < len(ef); i++ {
+		val[ef[i].Id].Phone = ef[i].DecryptedPhone
+		val[ef[i].Id].AlternatePhone = ef[i].DecryptedAlternatePhone
 	}
 }
 
@@ -188,7 +185,7 @@ func GetAddressListCacheKey(userID string) string {
 }
 
 //getAddressListFromCache get user's address list from cache
-func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug) ([]AddressResponse, error) {
+func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug) (map[string]*AddressResponse, error) {
 	p := profiler.NewProfiler()
 	p.StartProfile("AddressHelper#getAddressListFromCache")
 
@@ -196,15 +193,14 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 		p.EndProfileWithMetric([]string{"AddressHelper#getAddressListFromCache"})
 	}()
 
-	var address []AddressResponse
-
+	addressList := make(map[string]*AddressResponse)
+	var address map[string]*AddressResponse
 	cacheObj, errG := cache.Get(cache.Redis)
 	if errG != nil {
 		msg := fmt.Sprintf("Redis Config Error - %v", errG)
 		logger.Error(msg)
 	}
 	addressListCacheKey := GetAddressListCacheKey(userId)
-
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:addressListCacheKey", Value: addressListCacheKey})
 	result, err := cacheObj.Get(addressListCacheKey, false, false)
 	if err != nil {
@@ -213,7 +209,6 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 		return address, err
 	}
 
-	var addressList []AddressResponse
 	data := result.Value.(string)
 	byt := []byte(data)
 	if err := json.Unmarshal(byt, &addressList); err != nil {
@@ -275,44 +270,32 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 		logger.Error(fmt.Sprintf("Error while fetching address list from Cache"), rc)
 		return errors.New("Error while fetching address list from Cache")
 	}
+	index := fmt.Sprintf("%d", params.QueryParams.AddressId)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:id", Value: fmt.Sprintf("%d", index)})
+	addressList[index].IsOffice = params.QueryParams.Address.IsOffice
+	addressList[index].FirstName = address.FirstName
+	addressList[index].Phone = address.Phone
+	addressList[index].Address1 = address.Address1
+	addressList[index].City = address.City
+	addressList[index].AddressRegion = address.AddressRegion
+	addressList[index].PostCode = address.PostCode
+	addressList[index].SmsOpt = address.SmsOpt
+	addressList[index].UpdatedAt = time.Now().Format(appconstant.DATETIME_FORMAT)
 
-	var (
-		index int
-		flag  bool
-	)
-	for key, value := range addressList {
-		if value.Id == strconv.Itoa(params.QueryParams.AddressId) {
-			index = key
-			flag = true
-			break
-		}
+	if address.Country != "" {
+		addressList[index].Country = address.Country
 	}
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:index", Value: fmt.Sprintf("%d", index)})
-	if flag {
-		addressList[index].IsOffice = params.QueryParams.AddressType
-		addressList[index].FirstName = address.FirstName
-		addressList[index].Phone = address.Phone
-		addressList[index].Address1 = address.Address1
-		addressList[index].City = address.City
-		addressList[index].AddressRegion = address.AddressRegion
-		addressList[index].PostCode = address.PostCode
-		addressList[index].SmsOpt = address.SmsOpt
-
-		if address.Country != "" {
-			addressList[index].Country = address.Country
-		}
-		if address.RegionName != "" {
-			addressList[index].RegionName = address.RegionName
-		}
-		if address.LastName != "" {
-			addressList[index].LastName = address.LastName
-		}
-		if address.Address2 != "" {
-			addressList[index].Address2 = address.Address2
-		}
-		if address.AlternatePhone != "" {
-			addressList[index].AlternatePhone = address.AlternatePhone
-		}
+	if address.RegionName != "" {
+		addressList[index].RegionName = address.RegionName
+	}
+	if address.LastName != "" {
+		addressList[index].LastName = address.LastName
+	}
+	if address.Address2 != "" {
+		addressList[index].Address2 = address.Address2
+	}
+	if address.AlternatePhone != "" {
+		addressList[index].AlternatePhone = address.AlternatePhone
 	}
 	err = saveDataInCache(userID, addressList)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
@@ -341,23 +324,7 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	if err != nil {
 		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
 	}
-	var (
-		index int
-		flag  bool
-	)
-	for key, value := range addressList {
-		addID := fmt.Sprintf("%d", value.Id)
-		if addID == addressID {
-			index = key
-			flag = true
-			break
-		}
-	}
-	if flag {
-		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache:Deleting an index", Value: fmt.Sprintf("%d", index)})
-		addressList = append(addressList[:index], addressList[index+1:]...)
-	}
-	addressList = append(addressList, address...)
+	addressList[addressID] = address[addressID]
 	err = saveDataInCache(userID, addressList)
 
 	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
@@ -368,7 +335,7 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	}
 }
 
-func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address []AddressResponse, err error) {
+func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address map[string]*AddressResponse, err error) {
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_accessor-DeleteAddress")
 	defer func() {
@@ -384,26 +351,12 @@ func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address []
 		return address, errors.New("Could not retrieve address list from Cache")
 	}
 	id := fmt.Sprintf("%d", addressId)
-	var (
-		index int
-		flag  bool
-	)
-	for key, value := range addressList {
-		addId := fmt.Sprintf("%d", value.Id)
-		if addId == id {
-			index = key
-			flag = true
-			break
-		}
-	}
-	if flag {
-		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:index", Value: fmt.Sprintf("%d", index)})
-		addressList = append(addressList[:index], addressList[index+1:]...)
-		err = saveDataInCache(userId, addressList)
-		if err != nil {
-			logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
-			return address, errors.New("Could not update address list in Cache while deleting. " + err.Error())
-		}
+	delete(addressList, id)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:id", Value: fmt.Sprintf("%d", id)})
+	err = saveDataInCache(userId, addressList)
+	if err != nil {
+		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
+		return address, errors.New("Could not update address list in Cache while deleting. " + err.Error())
 	}
 	return addressList, nil
 }
@@ -433,7 +386,7 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 
 	rc := params.RequestContext
 	userID := rc.UserID
-	addressID := params.QueryParams.AddressId
+	addressID := fmt.Sprintf("%s", params.QueryParams.AddressId)
 	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 
 	if err != nil {
@@ -441,26 +394,11 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 		logger.Error(msg)
 		return errors.New(msg)
 	}
-	var (
-		index int
-		flag  bool
-	)
-
-	for key, value := range addressList {
-		if value.Id == strconv.Itoa(addressID) {
-			index = key
-			flag = true
-			break
-		}
-	}
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:index", Value: fmt.Sprintf("%d", index)})
-	if flag {
-		// addressList[index].AddressType = params.QueryParams.Address.AddressType
-		if params.QueryParams.AddressType == appconstant.BILLING {
-			addressList[index].IsDefaultBilling = "1"
-		} else {
-			addressList[index].IsDefaultShipping = "1"
-		}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:id", Value: addressID})
+	if params.QueryParams.AddressType == appconstant.BILLING {
+		addressList[addressID].IsDefaultBilling = "1"
+	} else {
+		addressList[addressID].IsDefaultShipping = "1"
 	}
 	err = saveDataInCache(userID, addressList)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
