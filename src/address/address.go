@@ -49,7 +49,14 @@ func (a ListAddressExecutor) Execute(io workflow.WorkFlowData) (workflow.WorkFlo
 	}
 
 	debugInfo := new(Debug)
-	addressListResult, err := GetAddressList(params, debugInfo)
+	addressType := params.QueryParams.AddressType
+	var err error
+	var addressListResult *AddressResult
+	if addressType == "all" || addressType == "other" || addressType == "" {
+		addressListResult, err = GetAddressList(params, debugInfo)
+	} else {
+		addressListResult, err = GetAddressTypeList(params, debugInfo)
+	}
 	if err != nil {
 		logger.Error("unable to get address")
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}

@@ -60,21 +60,13 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	end := params.QueryParams.Offset + params.QueryParams.Limit
 	addressFiltered := make(map[string]*AddressResponse, 0)
 
-	if params.QueryParams.AddressType == "all" || params.QueryParams.AddressType == "" {
+	if addressType == "all" || params.QueryParams.AddressType == "" {
 		if params.QueryParams.Limit != 0 {
 			addressFiltered = addressResult //[start:end]
 		}
 	} else {
 		for k, v := range addressResult {
-			if params.QueryParams.AddressType == "billing" {
-				if v.IsDefaultBilling == "1" {
-					addressFiltered[k] = v
-				}
-			} else if params.QueryParams.AddressType == "shipping" {
-				if v.IsDefaultShipping == "1" {
-					addressFiltered[k] = v
-				}
-			} else if params.QueryParams.AddressType == "other" {
+			if addressType == "other" {
 				if v.IsDefaultShipping == "0" && v.IsDefaultBilling == "0" {
 					addressFiltered[k] = v
 				}
@@ -217,4 +209,42 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 	}
 	a.AddressList = addressResult
 	return a, nil
+}
+
+func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
+	prof := profiler.NewProfiler()
+	prof.StartProfile("address-address_accessor-GetAddressTypeList")
+	defer func() {
+		prof.EndProfileWithMetric([]string{"address-address_accessor-GetAddressTypeList"})
+	}()
+
+	rc := params.RequestContext
+	userID := rc.UserID
+	a := new(AddressResult)
+	addressType := params.QueryParams.AddressType
+	addressResult, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	if len(addressResult) == 0 || addressResult == nil || err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "GetAddressList.Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Error in getting addresslist from cache. Error::" + err.Error()))
+		addressResult, err = getAddressList(params, "", debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("error in getting the address list - %v", err))
+			return a, err
+		}
+	}
+	var index string
+	for k, v := range addressResult {
+		if addressType == "billing" && v.IsDefaultBilling == "1" {
+			index = k
+			break
+		} else if addressType == "shipping" && v.IsDefaultShipping == "1" {
+			index = k
+			break
+		}
+	}
+
+	a.AddressList = addressResult[index]
+	a.Summery = AddressDetails{Count: 1, Type: addressType}
+	return a, nil
+
 }
