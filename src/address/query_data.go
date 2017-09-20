@@ -17,5 +17,6 @@ type QueryParams struct {
 	AddressType string
 	AddressId   int
 	Postcode    int
+	Default     int
 	Address     AddressRequest
 }

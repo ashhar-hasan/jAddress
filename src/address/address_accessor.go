@@ -116,10 +116,21 @@ func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		err := invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 	}
-	go updateAddressInDb(params, debugInfo)
+
 	a := new(AddressResult)
+	// Set as default shipping address
+	if params.QueryParams.Default == 1 {
+		_, err := UpdateType(params, debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
+			return a, errors.New("Some error occurred while setting the default address")
+		}
+	}
+
+	go updateAddressInDb(params, debugInfo)
 	return a, nil
 }
+
 func UpdateType(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_accessor-UpdateType")
@@ -142,6 +153,7 @@ func UpdateType(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	a := new(AddressResult)
 	return a, nil
 }
+
 func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_accessor-AddAddress")
@@ -167,7 +179,16 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	}
 	a.AddressList = addressResult
 
-	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+	updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+
+	// Set as default shipping address
+	if params.QueryParams.Default == 1 {
+		_, err := UpdateType(params, debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
+			return a, errors.New("Some error occurred while setting the default address")
+		}
+	}
 
 	return a, nil
 }

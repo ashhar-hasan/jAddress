@@ -71,6 +71,13 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 
 	updateParamsWithBuckets(&params, io)
 	updateParamsWithRequestContext(&params, io)
+	params.QueryParams.Default, err = utilHttp.GetIntParamFields(appHTTPReq.OriginalRequest, appconstant.URLPARAM_DEFAULT)
+	if err != nil {
+		params.QueryParams.Default = 0
+	}
+	if params.QueryParams.Default == 1 {
+		params.QueryParams.AddressType = appconstant.SHIPPING
+	}
 
 	if appHTTPReq.HTTPVerb == "DELETE" || appHTTPReq.HTTPVerb == "PUT" || appHTTPReq.HTTPVerb == "GET" {
 		// Update default billing/shipping address case

@@ -343,16 +343,15 @@ func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address ma
 	}()
 	rc := params.RequestContext
 	userId := rc.UserID
-	addressId := params.QueryParams.AddressId
+	addressId := fmt.Sprintf("%d", params.QueryParams.AddressId)
 
 	addressList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
 	if err != nil {
 		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not retrieve address list from Cache"), rc)
 		return address, errors.New("Could not retrieve address list from Cache")
 	}
-	id := fmt.Sprintf("%d", addressId)
-	delete(addressList, id)
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:id", Value: fmt.Sprintf("%d", id)})
+	delete(addressList, addressId)
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:id", Value: addressId})
 	err = saveDataInCache(userId, addressList)
 	if err != nil {
 		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
@@ -386,7 +385,7 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 
 	rc := params.RequestContext
 	userID := rc.UserID
-	addressID := fmt.Sprintf("%s", params.QueryParams.AddressId)
+	addressID := fmt.Sprintf("%d", params.QueryParams.AddressId)
 	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 
 	if err != nil {

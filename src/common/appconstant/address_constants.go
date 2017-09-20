@@ -21,6 +21,7 @@ const (
 	URLPARAM_ADDRESSID   = "addressId"
 	URLPARAM_POSTCODE    = "postcode"
 	URLPARAM_ADDRESSTYPE = "addressType"
+	URLPARAM_DEFAULT     = "default"
 )
 
 const (
