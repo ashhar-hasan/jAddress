@@ -124,6 +124,9 @@ func validateAndSetParams(params *RequestParams, httpReq *utilHttp.Request) erro
 		if val == "" {
 			val = appconstant.ALL
 		}
+		if val != appconstant.BILLING && val != appconstant.SHIPPING && val != appconstant.OTHER && val != appconstant.ALL {
+			return errors.New("AddressType should be one of all, billing, shipping or other")
+		}
 		params.QueryParams.AddressType = val
 		return nil
 	}
