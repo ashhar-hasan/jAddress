@@ -151,12 +151,13 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			}
 			address.City = sanitize(str, false)
 		case appconstant.REGION:
-			address.RegionName, ok = value.(string)
+			str, ok := value.(string)
 			if !ok {
 				msg := fmt.Sprintf("Field name '%s' is expected to be string type", appconstant.REGION)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
 			}
+			address.RegionName = str
 		case appconstant.ADDRESS_REGION:
 			addressRegionID, ok := value.(string)
 			if !isIntegral(addressRegionID) || !ok {
@@ -223,7 +224,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.City == "" ||
 			address.PostCode == "" ||
 			address.AddressRegion == "" {
-			return errors.New(fmt.Printf("Required parameters are missing: %s=%s, %s=%s, %s=%s, %s=%s, %s=%s", appconstant.FIRST_NAME, address.FirstName, appconstant.ADDRESS1, address.Address1, appconstant.CITY, address.City, appconstant.POSTCODE, address.PostCode, appconstant.ADDRESS_REGION, address.AddressRegion))
+			return fmt.Errorf("Required parameters are missing: %s=%s, %s=%s, %s=%s, %s=%s, %s=%s", appconstant.FIRST_NAME, address.FirstName, appconstant.ADDRESS1, address.Address1, appconstant.CITY, address.City, appconstant.POSTCODE, address.PostCode, appconstant.ADDRESS_REGION, address.AddressRegion)
 		}
 	}
 	params.QueryParams.Address = address
