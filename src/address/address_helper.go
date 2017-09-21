@@ -205,7 +205,7 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 	result, err := cacheObj.Get(addressListCacheKey, false, false)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error while getting address list from cache %s", err))
-		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting address list from cache::" + err.Error()})
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting address list from cache::" + err.Error() + " for cache key::" + addressListCacheKey})
 		return address, err
 	}
 
@@ -271,7 +271,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 		return errors.New("Error while fetching address list from Cache")
 	}
 	index := fmt.Sprintf("%d", params.QueryParams.AddressId)
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:id", Value: fmt.Sprintf("%d", index)})
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateAddressInCache:id", Value: index})
 	addressList[index].IsOffice = params.QueryParams.Address.IsOffice
 	addressList[index].FirstName = address.FirstName
 	addressList[index].Phone = address.Phone

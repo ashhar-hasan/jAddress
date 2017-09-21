@@ -23,7 +23,7 @@ func getRegionId(regionId string, debug *Debug) (id string, countryId string, er
 	}()
 
 	sql := `SELECT id_customer_address_region, fk_country FROM customer_address_region WHERE id_customer_address_region = ?`
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql})
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql", Value: sql + regionId})
 	rows, err := db.Query(sql, regionId)
 	if err.(*sqldb.SDBError) != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "GetRegionSql;Err", Value: err.Error()})
@@ -158,14 +158,23 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		prof.EndProfileWithMetric([]string{"AddressModel#addAddress"})
 	}()
 
-	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?, validation_flag= ?`
+	sql := `INSERT INTO customer_address SET first_name=?, address1=?, phone=?, postcode=?, city=?, fk_customer_address_region=?, fk_country=?, fk_customer=?, created_at=?, validation_flag=?, last_name=?`
+	if a.Address2 != "" {
+		sql = sql + `, address2='` + a.Address2 + `'`
+	}
+	if a.AlternatePhone != "" {
+		sql = sql + `, alternate_phone='` + a.EncryptedAlternatePhone + `'`
+	}
+	if a.IsOffice != "" {
+		sql = sql + `, address_type='` + a.IsOffice + `'`
+	}
 
 	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
 	if err1 != nil {
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
 		return 0, err1
 	}
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql + fmt.Sprintf("%+v", a)})
 
 	// start and commit one txn: insert one row in table
 	txObj, terr := db.GetTxnObj()
@@ -174,7 +183,7 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		return 0, terr
 	}
 	validationFlag := validateAddress(a.Address1 + a.Address2)
-	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format(appconstant.DATETIME_FORMAT), validationFlag)
+	rows, err1 := txObj.Exec(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.PostCode, a.City, customerAddressRegion, countryID, userID, time.Now().Format(appconstant.DATETIME_FORMAT), validationFlag, a.LastName)
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
@@ -227,11 +236,11 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 	}
 	validationFlag := validateAddress(a.Address1 + a.Address2)
 	query = fmt.Sprintf(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.City, a.PostCode, customerAddressRegion, countryId, a.IsOffice, validationFlag)
+	addressId := strconv.Itoa(params.QueryParams.AddressId)
 	logger.Info(fmt.Sprintf("Update Address query: %s", query), rc)
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateAddressInDb:Sql", Value: query})
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateAddressInDb:Sql", Value: query + "fk_customer: " + userId + "id_customer_address: " + addressId})
 
 	var err1, err2 error
-	addressId := strconv.Itoa(params.QueryParams.AddressId)
 	txObj, terr := db.GetTxnObj()
 	if terr == nil {
 		_, err1 = txObj.Exec(query, userId, addressId)
@@ -274,7 +283,7 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e ch
 	addressId := strconv.Itoa(params.QueryParams.AddressId)
 	sql := `DELETE FROM customer_address WHERE id_customer_address=? AND fk_customer=?`
 
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddress:Sql", Value: sql})
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddress:Sql", Value: sql + "id_customer_address: " + addressId + "fk_customer: " + userId})
 
 	txObj, _ := db.GetTxnObj()
 	deleteResult, err1 := txObj.Exec(sql, addressId, userId)
@@ -382,7 +391,7 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 	userId := rc.UserID
 	updateTypeField := getAddressTypeSql(params.QueryParams.AddressType)
 	query := `UPDATE customer_address SET ` + updateTypeField + ` WHERE fk_customer = ? and id_customer_address= ?`
-	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateType:Sql", Value: query})
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "updateType:Sql", Value: query + "fk_customer: " + userId + "id_customer_address: " + string(params.QueryParams.AddressId)})
 	txObj, _ := db.GetTxnObj()
 	updateTypeResult, err1 := txObj.Exec(query, userId, params.QueryParams.AddressId)
 	if err1 != nil {

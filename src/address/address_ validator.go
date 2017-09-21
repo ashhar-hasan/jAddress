@@ -118,7 +118,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.Address2 = sanitize(str, false)
 		case appconstant.PHONE:
 			mobile, ok := value.(string)
-			if !isIntegral(mobile) || !ok {
+			if !ok || !isIntegral(mobile) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.PHONE)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -131,13 +131,14 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.Phone = mobile
 		case appconstant.ALTERNATE_PHONE:
 			altPh, ok := value.(string)
-			if !isIntegral(altPh) || !ok {
+			if !ok || !isIntegral(altPh) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.ALTERNATE_PHONE)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
 			}
 			validLen := 10
-			if len(altPh) != validLen {
+			// Can be empty or be 10 digits
+			if len(altPh) != validLen && len(altPh) != 0 {
 				msg := fmt.Sprintf("Invalid value for field '%s' - length should be %d", appconstant.ALTERNATE_PHONE, validLen)
 				return errors.New(msg)
 			}
@@ -160,7 +161,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.RegionName = str
 		case appconstant.ADDRESS_REGION:
 			addressRegionID, ok := value.(string)
-			if !isIntegral(addressRegionID) || !ok {
+			if !ok || !isIntegral(addressRegionID) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.ADDRESS_REGION)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -168,7 +169,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.AddressRegion = addressRegionID
 		case appconstant.POSTCODE:
 			p, ok := value.(string)
-			if !isIntegral(p) || !ok {
+			if !ok || !isIntegral(p) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.POSTCODE)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -181,7 +182,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.PostCode = p
 		case appconstant.SMS_OPT:
 			sms, ok := value.(string)
-			if !isIntegral(sms) || !ok {
+			if !ok || !isIntegral(sms) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.SMS_OPT)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -194,7 +195,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.SmsOpt = sms
 		case appconstant.IS_OFFICE:
 			isOffice, ok := value.(string)
-			if !isIntegral(isOffice) || !ok {
+			if !ok || !isIntegral(isOffice) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.IS_OFFICE)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -207,7 +208,7 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 			address.IsOffice = isOffice
 		case appconstant.COUNTRY:
 			country, ok := value.(string)
-			if !isIntegral(country) || !ok {
+			if !ok || !isIntegral(country) {
 				msg := fmt.Sprintf("Field name '%s' is expected to be integer type", appconstant.COUNTRY)
 				logger.Error(msg, params.RequestContext)
 				return errors.New(msg)
@@ -233,6 +234,9 @@ func validateAddressParams(params *RequestParams, httpVerb utilHttp.Method, io w
 }
 
 func isIntegral(val string) bool {
+	if val == "" {
+		return true
+	}
 	fl, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		return false

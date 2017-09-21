@@ -89,7 +89,7 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 		temp[keys[i]] = addressFiltered[keys[i]]
 	}
 	a.AddressList = temp
-	a.Summery = AddressDetails{Count: len(temp), Type: addressType}
+	a.Summary = AddressDetails{Count: len(temp), Type: addressType}
 	return a, nil
 }
 
@@ -244,7 +244,7 @@ func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult
 	}
 
 	a.AddressList = addressResult[index]
-	a.Summery = AddressDetails{Count: 1, Type: addressType}
+	a.Summary = AddressDetails{Count: 1, Type: addressType}
 	return a, nil
 
 }

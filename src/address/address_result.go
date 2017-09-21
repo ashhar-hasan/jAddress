@@ -1,7 +1,7 @@
 package address
 
 type AddressResult struct {
-	Summery     AddressDetails `json:"Summery,omitempty"`
+	Summary     AddressDetails `json:"Summary,omitempty"`
 	AddressList interface{}    `json:"AddressList,omitempty"`
 }
 
