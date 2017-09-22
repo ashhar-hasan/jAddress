@@ -423,6 +423,61 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 		e <- err1
 		return
 	}
+
+	// Reset defaults for other addresses
+	addressTypeSQL := ""
+	if params.QueryParams.AddressType == appconstant.BILLING {
+		addressTypeSQL = ` is_default_billing = 1`
+	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
+		addressTypeSQL = ` is_default_shipping = 1`
+	}
+	query = `SELECT id_customer_address FROM customer_address WHERE ` + addressTypeSQL + ` AND fk_customer = ?`
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Sql", Value: query + userId})
+	rows, err := db.Query(query, userId)
+	if err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
+		e <- err
+		return
+	}
+	var addressID string
+	resetAddressTypeSql := ""
+	if params.QueryParams.AddressType == appconstant.BILLING {
+		resetAddressTypeSql = `is_default_billing = 0`
+	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
+		resetAddressTypeSql = `is_default_shipping = 0`
+	}
+	resetQuery := `UPDATE customer_address SET` + resetAddressTypeSql + ` WHERE id_customer_address = ?`
+	for rows.Next() {
+		err1 := rows.Scan(&addressID)
+		if err1 != nil {
+			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Err", Value: err1.Error()})
+			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
+			e <- err1
+			return
+		}
+		txObj, terr := db.GetTxnObj()
+		if terr != nil {
+			if addressID != string(params.QueryParams.AddressId) {
+				_, err1 = txObj.Exec(resetQuery, addressID)
+				if err1 != nil {
+					txObj.Rollback()
+					key := GetAddressListCacheKey(userId)
+					invalidateCache(key)
+					logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
+				}
+			}
+		} else {
+			logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", appconstant.MYSQL_ERROR, terr), rc)
+		}
+		err1 = txObj.Commit()
+		if err != nil {
+			txObj.Rollback()
+			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "AddAddress::CommitTransactionError:", Value: err.Error()})
+			e <- err
+		}
+	}
+
 	e <- nil
 	return
 }

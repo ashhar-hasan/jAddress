@@ -404,7 +404,17 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:id", Value: addressID})
 	if params.QueryParams.AddressType == appconstant.BILLING {
 		addressList[addressID].IsDefaultBilling = "1"
-	} else {
+		for _, address := range addressList {
+			if address.IsDefaultBilling == "1" {
+				address.IsDefaultBilling = "0"
+			}
+		}
+	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
+		for _, address := range addressList {
+			if address.IsDefaultShipping == "1" {
+				address.IsDefaultShipping = "0"
+			}
+		}
 		addressList[addressID].IsDefaultShipping = "1"
 	}
 	err = saveDataInCache(userID, addressList)
