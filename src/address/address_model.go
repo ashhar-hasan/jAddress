@@ -168,6 +168,13 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 	if a.IsOffice != "" {
 		sql = sql + `, address_type='` + a.IsOffice + `'`
 	}
+	// Check if the user has any other addresses, if not, mark this as default
+	flag, err := isFirstAddress(userID, debug)
+	if flag == true {
+		sql = sql + `, is_default_shipping = 1, is_default_billing = 1`
+	} else if err != nil {
+		return 0, err
+	}
 
 	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
 	if err1 != nil {
@@ -417,4 +424,47 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 	}
 	e <- nil
 	return
+}
+
+func isFirstAddress(userID string, debug *Debug) (bool, error) {
+	// Use cache before using DB
+	var e QueryParams
+	addressList, cacheErr := getAddressListFromCache(userID, e, debug)
+	if cacheErr != nil {
+		return false, cacheErr
+	}
+	if addressList != nil {
+		if len(addressList) == 0 {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	// Use DB if not found in cache
+	db, _ := sqldb.Get("mysdb")
+	prof := profiler.NewProfiler()
+	prof.StartProfile("AddressModel#isFirstAddress")
+
+	defer func() {
+		prof.EndProfileWithMetric([]string{"AddressModel#isFirstAddress"})
+	}()
+
+	sql := `SELECT COUNT(id_customer_address) FROM customer_address WHERE fk_customer = ?`
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql", Value: sql + userID})
+	rows, err := db.Query(sql, userID)
+	if err != nil {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
+		return false, err
+	}
+	count := 1
+	for rows.Next() {
+		err1 := rows.Scan(&count)
+		if err1 != nil {
+			debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err1.Error()})
+			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
+			return false, err1
+		}
+	}
+	return (count == 0), nil
 }
