@@ -324,6 +324,10 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	if err != nil {
 		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
 	}
+	if addressList == nil {
+		addressList = make(map[string]*AddressResponse, 0)
+		addressList[addressID] = address[addressID]
+	}
 	addressList[addressID] = address[addressID]
 	err = saveDataInCache(userID, addressList)
 
