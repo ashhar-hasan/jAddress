@@ -1,6 +1,7 @@
 package servicetest
 
 import (
+	fconstants "github.com/jabong/florest-core/src/common/constants"
 	gk "github.com/onsi/ginkgo"
 	gm "github.com/onsi/gomega"
 
@@ -28,7 +29,7 @@ var _ = gk.Describe("Test my api :)", func() {
 			gk.It("should return api health status", func() {
 				gm.Expect(response.HeaderMap.Get("Content-Type")).To(gm.Equal("application/json"))
 				gm.Expect(response.HeaderMap.Get("Cache-Control")).To(gm.Equal(""))
-				gm.Expect(response.Code).To(gm.Equal(200))
+				gm.Expect(response.Code).To(gm.Equal(int(fconstants.HTTPStatusSuccessCode)))
 				validateHealthCheckResponse(response.Body.String())
 			})
 		})
@@ -43,7 +44,7 @@ var _ = gk.Describe("Test my api :)", func() {
 			gk.It("should successfully get", func() {
 				gm.Expect(response.HeaderMap.Get("Content-Type")).To(gm.Equal("application/json"))
 				gm.Expect(response.HeaderMap.Get("Cache-Control")).To(gm.Equal(""))
-				gm.Expect(response.Code).To(gm.Equal(501))
+				gm.Expect(response.Code).To(gm.Equal(int(fconstants.HTTPStatusNotFound)))
 			})
 		})
 	})

@@ -25,3 +25,9 @@ func validateHealthCheckResponse(responseBody string) {
 		}
 	}
 }
+
+func GetRequestBody(response string) (utilhttp.Response, error) {
+	var utilResponse utilhttp.Response
+	err := json.Unmarshal([]byte(response), &utilResponse)
+	return utilResponse, err
+}
