@@ -447,7 +447,7 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
 		resetAddressTypeSql = `is_default_shipping = 0`
 	}
-	resetQuery := `UPDATE customer_address SET` + resetAddressTypeSql + ` WHERE id_customer_address = ?`
+	resetQuery := `UPDATE customer_address SET ` + resetAddressTypeSql + ` WHERE id_customer_address = ?`
 	for rows.Next() {
 		err1 := rows.Scan(&addressID)
 		if err1 != nil {
@@ -457,8 +457,8 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 			return
 		}
 		txObj, terr := db.GetTxnObj()
-		if terr != nil {
-			if addressID != string(params.QueryParams.AddressId) {
+		if terr == nil {
+			if addressID != strconv.Itoa(params.QueryParams.AddressId) {
 				_, err1 = txObj.Exec(resetQuery, addressID)
 				if err1 != nil {
 					txObj.Rollback()
@@ -468,7 +468,7 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 				}
 			}
 		} else {
-			logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%+v", appconstant.MYSQL_ERROR, terr), rc)
+			logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%s", appconstant.MYSQL_ERROR, terr), rc)
 		}
 		err1 = txObj.Commit()
 		if err != nil {
@@ -486,43 +486,37 @@ func isFirstAddress(userID string, debug *Debug) (bool, error) {
 	// Use cache before using DB
 	var e QueryParams
 	addressList, cacheErr := getAddressListFromCache(userID, e, debug)
-	if cacheErr != nil {
-		return false, cacheErr
-	}
-	if addressList != nil {
-		if len(addressList) == 0 {
-			return true, nil
+	if cacheErr != nil || len(addressList) == 0 {
+		db, _ := sqldb.Get("mysdb")
+		prof := profiler.NewProfiler()
+		prof.StartProfile("AddressModel#isFirstAddress")
+
+		defer func() {
+			prof.EndProfileWithMetric([]string{"AddressModel#isFirstAddress"})
+		}()
+
+		sql := `SELECT COUNT(id_customer_address) FROM customer_address WHERE fk_customer = ?`
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql", Value: sql + userID})
+		rows, err := db.Query(sql, userID)
+		if err != nil {
+			debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err.Error()})
+			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
+			return false, err
 		}
-		return false, nil
-	}
-
-	// Use DB if not found in cache
-	db, _ := sqldb.Get("mysdb")
-	prof := profiler.NewProfiler()
-	prof.StartProfile("AddressModel#isFirstAddress")
-
-	defer func() {
-		prof.EndProfileWithMetric([]string{"AddressModel#isFirstAddress"})
-	}()
-
-	sql := `SELECT COUNT(id_customer_address) FROM customer_address WHERE fk_customer = ?`
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql", Value: sql + userID})
-	rows, err := db.Query(sql, userID)
-	if err != nil {
-		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err.Error()})
-		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
-		return false, err
-	}
-	count := 1
-	for rows.Next() {
-		err1 := rows.Scan(&count)
-		if err1 != nil {
-			debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err1.Error()})
-			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
-			return false, err1
+		count := 1
+		if rows.Next() {
+			err1 := rows.Scan(&count)
+			if err1 != nil {
+				debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err1.Error()})
+				logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
+				return false, err1
+			}
 		}
+		return (count == 0), nil
+
 	}
-	return (count == 0), nil
+	return false, nil
+
 }
 
 func checkDefaultAddressInDB(addressID int, userID string, debugInfo *Debug) (int, error) {
