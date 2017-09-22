@@ -1,7 +1,6 @@
 package servicetest
 
 import (
-	fconstants "github.com/jabong/florest-core/src/common/constants"
 	gk "github.com/onsi/ginkgo"
 	gm "github.com/onsi/gomega"
 
@@ -27,9 +26,9 @@ var _ = gk.Describe("Test my api :)", func() {
 		gk.Context("then the response", func() {
 
 			gk.It("should return api health status", func() {
-				gm.Expect(response.HeaderMap.Get("Content-Type")).To(gm.Equal("application/json"))
-				gm.Expect(response.HeaderMap.Get("Cache-Control")).To(gm.Equal(""))
-				gm.Expect(response.Code).To(gm.Equal(int(fconstants.HTTPStatusSuccessCode)))
+				testUtil.MatchHeaderStatus(response)
+				responseBody, _ := testUtil.GetHTTPResponseAndAddressResult(response.Body.String())
+				testUtil.MatchSuccessResponseStatus(responseBody)
 				validateHealthCheckResponse(response.Body.String())
 			})
 		})
@@ -42,9 +41,9 @@ var _ = gk.Describe("Test my api :)", func() {
 		gk.Context("then the response", func() {
 
 			gk.It("should successfully get", func() {
-				gm.Expect(response.HeaderMap.Get("Content-Type")).To(gm.Equal("application/json"))
-				gm.Expect(response.HeaderMap.Get("Cache-Control")).To(gm.Equal(""))
-				gm.Expect(response.Code).To(gm.Equal(int(fconstants.HTTPStatusNotFound)))
+				testUtil.MatchHeaderStatus(response)
+				responseBody, _ := testUtil.GetHTTPResponseAndAddressResult(response.Body.String())
+				testUtil.MatchVersionableNotFound(responseBody)
 			})
 		})
 	})
