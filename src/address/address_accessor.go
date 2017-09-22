@@ -172,7 +172,7 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	}
 	a.AddressList = addressResult
 
-	updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
 
 	// Set as default shipping address
 	if params.QueryParams.Default == 1 {
