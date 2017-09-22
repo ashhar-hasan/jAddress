@@ -27,7 +27,6 @@ func main() {
 
 func registerAllApis() {
 	service.RegisterAPI(new(address.ListAddressAPI))
-	service.RegisterAPI(new(address.ListAllAddressAPI))
 	service.RegisterAPI(new(address.CreateAddressAPI))
 	service.RegisterAPI(new(address.UpdateAddressAPI))
 	service.RegisterAPI(new(address.DeleteAddressAPI))

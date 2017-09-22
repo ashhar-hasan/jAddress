@@ -9,7 +9,7 @@ import (
 
 func InitializeTestService() {
 	service.RegisterHTTPErrors(appconstant.APPErrorCodeToHTTPCodeMap)
-	service.RegisterAPI(new(address.ListAllAddressAPI))
+	service.RegisterAPI(new(address.ListAddressAPI))
 	initTestLogger()
 
 	initTestConfig()
