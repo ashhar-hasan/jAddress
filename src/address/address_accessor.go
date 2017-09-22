@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/jabong/florest-core/src/common/config"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -192,23 +193,33 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		prof.EndProfileWithMetric([]string{"address-address_accessor-DeleteAddress"})
 	}()
 	a := new(AddressResult)
-	addressResult, cacheErr := deleteAddressFromCache(params, debugInfo)
-	if cacheErr != nil {
-		rc := params.RequestContext
-		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
-		err := invalidateCache(cacheKey)
-		logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+	flag, err1 := checkDefaultAddress(params, debugInfo)
+	if err1 != nil {
+		return nil, err1
 	}
-	e := make(chan error, 0)
+	if flag == 1 {
+		return nil, errors.New("Cannot delete default billing address")
+	} else if flag == 2 {
+		return nil, errors.New("Select a different default delivery address first.")
+	} else {
+		addressResult, cacheErr := deleteAddressFromCache(params, debugInfo)
+		if cacheErr != nil {
+			rc := params.RequestContext
+			cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
+			err := invalidateCache(cacheKey)
+			logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+		}
+		e := make(chan error, 0)
 
-	go deleteAddress(params, cacheErr, debugInfo, e) //Delete Adddress From DB
+		go deleteAddress(params, cacheErr, debugInfo, e) //Delete Adddress From DB
 
-	err := <-e
-	if err != nil {
-		return nil, err
+		err := <-e
+		if err != nil {
+			return nil, err
+		}
+		a.AddressList = addressResult
+		return a, nil
 	}
-	a.AddressList = addressResult
-	return a, nil
 }
 
 func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
@@ -246,5 +257,30 @@ func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult
 	a.AddressList = addressResult[index]
 	a.Summary = AddressDetails{Count: 1, Type: addressType}
 	return a, nil
+
+}
+
+func checkDefaultAddress(params *RequestParams, debugInfo *Debug) (int, error) {
+
+	userID := params.RequestContext.UserID
+	addressID := params.QueryParams.AddressId
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "CheckDefaultAddress", Value: "CheckDefaultAddress Execute"})
+	addressResult, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	if err != nil || len(addressResult) == 0 {
+		logger.Info(fmt.Sprintf("Address not found in cache for addressID: %d", params.QueryParams.AddressId))
+		val, err1 := checkDefaultAddressInDB(addressID, userID, debugInfo)
+		if err1 != nil {
+			return 0, err1
+		}
+		return val, nil
+	}
+	addID := strconv.Itoa(addressID)
+	if addressResult[addID].IsDefaultBilling == "1" {
+		return 1, nil
+	} else if addressResult[addID].IsDefaultShipping == "1" {
+		return 2, nil
+	} else {
+		return 0, nil
+	}
 
 }

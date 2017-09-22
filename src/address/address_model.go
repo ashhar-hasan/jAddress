@@ -92,7 +92,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 
 		err = rows.Scan(&id, &fname, &lname, &phone, &altPhone, &address1, &address2, &city, &isBilling, &isShipping, &fkCustomer, &createdAt, &updatedAt, &region, &customerAddressRegionId, &postcode, &country, &smsOpt, &isOffice)
 		if err != nil {
-			logger.Warning(fmt.Println("Mysql Row Error while getting row from customer_address table", err))
+			logger.Warning(fmt.Sprintf("Mysql Row Error while getting row from customer_address table", err))
 			continue
 		}
 
@@ -142,7 +142,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		if len(addresses) != 0 {
 			err = saveDataInCache(customerId, addresses)
 			if err != nil {
-				logger.Error(fmt.Println("getAddressList:Could not update addressList in cache. ", err.Error()))
+				logger.Error("getAddressList:Could not update addressList in cache. ", err.Error())
 			}
 		}
 	}
@@ -288,6 +288,7 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e ch
 	rc := params.RequestContext
 	userId := rc.UserID
 	addressId := strconv.Itoa(params.QueryParams.AddressId)
+
 	sql := `DELETE FROM customer_address WHERE id_customer_address=? AND fk_customer=?`
 
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddress:Sql", Value: sql + "id_customer_address: " + addressId + "fk_customer: " + userId})
@@ -467,4 +468,34 @@ func isFirstAddress(userID string, debug *Debug) (bool, error) {
 		}
 	}
 	return (count == 0), nil
+}
+
+func checkDefaultAddressInDB(addressID int, userID string, debugInfo *Debug) (int, error) {
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "checkDefaultAddressInDB", Value: "checkDefaultAddressInDB execute"})
+	db, _ := sqldb.Get("mysdb")
+	sql := "SELECT is_default_shipping,is_default_billing FROM customer_address WHERE id_customer_address=? AND fk_customer=?"
+	rows, err := db.Query(sql, addressID, userID)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, err.Error(), "customer_address"))
+		fmt.Println("Mysql Error while getting data from customer_address table", err.Error())
+		return -1, err
+	}
+	var shipping, billing int
+
+	if rows.Next() {
+
+		err1 := rows.Scan(&shipping, &billing)
+		if err1 != nil {
+			logger.Warning(fmt.Sprintf("checkDefaultAddressInDB : Mysql Row Error while getting row from customer_address table", err1))
+		}
+		if billing == 1 {
+			return 1, nil
+		} else if shipping == 1 {
+			return 2, nil
+		} else {
+			return 0, nil
+		}
+
+	}
+	return 0, nil
 }
