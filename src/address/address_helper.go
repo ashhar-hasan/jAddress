@@ -175,7 +175,11 @@ func mergeDecryptedFieldsWithAddressResult(ef []DecryptedFields, address *map[st
 	val := (*address)
 	for i := 0; i < len(ef); i++ {
 		val[ef[i].Id].Phone = ef[i].DecryptedPhone
-		val[ef[i].Id].AlternatePhone = ef[i].DecryptedAlternatePhone
+		if ef[i].DecryptedAlternatePhone != "0" {
+			val[ef[i].Id].AlternatePhone = ef[i].DecryptedAlternatePhone
+		} else {
+			val[ef[i].Id].AlternatePhone = ""
+		}
 	}
 }
 
