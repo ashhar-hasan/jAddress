@@ -5,5 +5,5 @@ import (
 )
 
 func initTestLogger() {
-	logger.Initialise("testdata/testloggerAsync.json")
+	logger.Initialise("../../../config/testdata/testloggerAsync.json")
 }

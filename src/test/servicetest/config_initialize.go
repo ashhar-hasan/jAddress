@@ -6,5 +6,5 @@ import (
 
 func initTestConfig() {
 	cm := new(service.ConfigManager)
-	cm.InitializeGlobalConfig("testdata/testconf.json")
+	cm.InitializeGlobalConfig("../../../config/testdata/testconf.json")
 }
