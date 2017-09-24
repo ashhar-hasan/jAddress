@@ -1,4 +1,4 @@
-package utils
+package address
 
 import (
 	"net/http"
@@ -8,6 +8,13 @@ import (
 	utilhttp "github.com/jabong/florest-core/src/common/utils/http"
 	gm "github.com/onsi/gomega"
 )
+
+//CreateTestRequest creates an HTTP request
+func CreateTestRequest(httpMethod string, urlString string) *http.Request {
+	request, _ := http.NewRequest(httpMethod, urlString, nil)
+	request.RequestURI = urlString
+	return request
+}
 
 //MatchHeaderStatus verified the Content-Type and Cache-Control headers
 func MatchHeaderStatus(responseRecorder *httptest.ResponseRecorder) {

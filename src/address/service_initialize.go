@@ -1,10 +1,10 @@
-package servicetest
+package address
 
 import (
-	"address"
 	"common/appconfig"
 	"common/appconstant"
 
+	"github.com/jabong/florest-core/src/common/logger"
 	utilHttp "github.com/jabong/florest-core/src/common/utils/http"
 	"github.com/jabong/florest-core/src/core/service"
 )
@@ -21,7 +21,7 @@ func InitializeTestService() {
 	initialiseTestWebServer()
 	service.InitHealthCheck()
 
-	address.Initialise()
+	Initialise()
 }
 
 func PurgeTestService() {
@@ -42,9 +42,18 @@ func registerCustomHTTPHeaders() {
 }
 
 func registerAllAPIs() {
-	service.RegisterAPI(new(address.ListAddressAPI))
-	service.RegisterAPI(new(address.CreateAddressAPI))
-	service.RegisterAPI(new(address.UpdateAddressAPI))
-	service.RegisterAPI(new(address.DeleteAddressAPI))
-	service.RegisterAPI(new(address.UpdateTypeAPI))
+	service.RegisterAPI(new(ListAddressAPI))
+	service.RegisterAPI(new(CreateAddressAPI))
+	service.RegisterAPI(new(UpdateAddressAPI))
+	service.RegisterAPI(new(DeleteAddressAPI))
+	service.RegisterAPI(new(UpdateTypeAPI))
+}
+
+func initTestConfig() {
+	cm := new(service.ConfigManager)
+	cm.InitializeGlobalConfig("../../config/testdata/testconf.json")
+}
+
+func initTestLogger() {
+	logger.Initialise("../../config/testdata/testloggerAsync.json")
 }

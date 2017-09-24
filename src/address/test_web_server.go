@@ -1,9 +1,10 @@
-package servicetest
+package address
 
 import (
-	"github.com/jabong/florest-core/src/core/service"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/jabong/florest-core/src/core/service"
 )
 
 type testWebserver struct {
