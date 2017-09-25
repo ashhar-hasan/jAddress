@@ -1,6 +1,6 @@
 bin/
 pkg/
-
+*.rdb
 # Binaries for programs and plugins
 *.exe
 *.dll

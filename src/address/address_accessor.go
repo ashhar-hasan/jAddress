@@ -8,9 +8,10 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/jabong/florest-core/src/common/config"
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
+	"github.com/jabong/florest-core/src/components/cache"
+	"github.com/jabong/florest-core/src/components/sqldb"
 )
 
 var encryptServiceObj *EncryptionService
@@ -18,11 +19,17 @@ var encryptServiceObj *EncryptionService
 //Initialise initialises Address Accessor
 func Initialise() {
 	var err error
-	c := config.GlobalAppConfig.ApplicationConfig
-	appConfig, _ := c.(*appconfig.AddressServiceConfig)
+	appConfig, _ := appconfig.GetAddressServiceConfig()
 	encryptServiceObj, err = InitEncryptionService(appConfig.EncryptionServiceConfig.Host, appConfig.EncryptionServiceConfig.ReqTimeout)
 	if err != nil {
 		panic("Failed to initialise Encryption Service" + err.Error())
+	}
+	if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
+		fmt.Println("err  ", err)
+		logger.Error(err)
+	}
+	if err = cache.Set(cache.Redis, appConfig.Cache.Redis, new(cache.RedisClientAdapter)); err != nil {
+		logger.Error(err)
 	}
 	logger.Info(fmt.Sprintf("Address Service Accessor Initialize"))
 }
