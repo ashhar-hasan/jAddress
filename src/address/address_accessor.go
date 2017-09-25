@@ -160,6 +160,7 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	addressData := params.QueryParams.Address
 
 	lastInsertedId, err := addAddress(userId, addressData, debugInfo)
+	params.QueryParams.AddressId = int(lastInsertedId)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error in adding new address in db - %v", err), rc)
