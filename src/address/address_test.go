@@ -16,6 +16,9 @@ func TestAddress(t *testing.T) {
 	gk.RunSpecs(t, "Address Suite")
 }
 
+var userID string = "1773895"
+var sessionID string = "12345678901234567890"
+
 var _ = gk.Describe("Address API", func() {
 	InitializeTestService()
 
@@ -55,7 +58,7 @@ var _ = gk.Describe("Address API", func() {
 	allURL := baseURL + appconstant.ALL
 	gk.Describe("GET"+allURL, func() {
 		request := CreateTestRequest("GET", allURL)
-		request.Header.Add("X-Jabong-SessionId", "12345678901234567890")
+		request.Header.Add("X-Jabong-SessionId", sessionID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -71,7 +74,7 @@ var _ = gk.Describe("Address API", func() {
 	// Test case for missing X-Jabong-SessionId
 	gk.Describe("GET"+allURL, func() {
 		request := CreateTestRequest("GET", allURL)
-		request.Header.Add("X-Jabong-UserId", "1")
+		request.Header.Add("X-Jabong-UserId", userID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -80,6 +83,22 @@ var _ = gk.Describe("Address API", func() {
 				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
 				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.APPErrorCode(1401)))
 				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("SessionId must be provided in request header"))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/all
+	gk.Describe("GET"+allURL, func() {
+		request := CreateTestRequest("GET", allURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 3 addresses", func() {
+				responseBody, addressResult := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(3))
 			})
 		})
 	})

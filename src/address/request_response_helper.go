@@ -45,6 +45,5 @@ func MatchNotFoundResponseStatus(responseBody *utilhttp.Response) {
 
 //MatchHTTPCode verifies status for given HTTPCode
 func MatchHTTPCode(responseBody *utilhttp.Response, httpCode fconstants.HTTPCode) {
-	gm.Expect(responseBody.Status.HTTPStatusCode).To(gm.Equal(fconstants.HTTPStatusBadRequestCode))
-	gm.Expect(responseBody.Status.Success).To(gm.Equal(false))
+	gm.Expect(responseBody.Status.HTTPStatusCode).To(gm.Equal(httpCode))
 }
