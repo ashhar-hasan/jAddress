@@ -1,6 +1,7 @@
 bin/
 pkg/
 *.rdb
+*.coverprofile
 # Binaries for programs and plugins
 *.exe
 *.dll
