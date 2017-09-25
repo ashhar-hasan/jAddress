@@ -159,6 +159,7 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	userId := rc.UserID
 	addressData := params.QueryParams.Address
 
+	isFirst, _ := isFirstAddress(userId, debugInfo)
 	lastInsertedId, err := addAddress(userId, addressData, debugInfo)
 	params.QueryParams.AddressId = int(lastInsertedId)
 
@@ -176,7 +177,7 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
 
 	// Set as default shipping address
-	if params.QueryParams.Default == 1 {
+	if params.QueryParams.Default == 1 && isFirst == false {
 		_, err := UpdateType(params, debugInfo)
 		if err != nil {
 			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
