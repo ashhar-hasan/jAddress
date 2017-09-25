@@ -4,7 +4,9 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
@@ -51,9 +53,13 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	if !pOk || appHTTPReq == nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
-	sessionID, err := io.ExecContext.Get(appconstant.SESSION_ID)
+	sessionIDInt, err := io.ExecContext.Get(appconstant.SESSION_ID)
+	sessionID, _ := sessionIDInt.(string)
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
+	}
+	if validateSession(&sessionID) == false {
+		return io, &constants.AppError{Code: constants.ParamsInValidErrorCode, Message: "SessionId is invalid"}
 	}
 	userID, rerr := io.ExecContext.Get(appconstant.USER_ID)
 	if userID == "" || rerr != nil {
@@ -156,4 +162,18 @@ func validateAndSetParamsForUpdate(params *RequestParams, httpReq *utilHttp.Requ
 	}
 	params.QueryParams.AddressType = addressType
 	return nil
+}
+
+func validateSession(sessionID *string) bool {
+	session := strings.Trim(*sessionID, " ")
+	ret := true
+	if len(session) <= 0 {
+		ret = false
+	} else {
+		r, _ := regexp.Compile("^[A-Za-z0-9-]{20,}$")
+		if r.MatchString(session) == false {
+			ret = false
+		}
+	}
+	return ret
 }
