@@ -88,6 +88,15 @@ var _ = gk.Describe("Address API", func() {
 			})
 		})
 	})
+})
+
+var _ = gk.Describe("GET Address API", func() {
+	InitializeTestService()
+
+	apiName := "AddressService"
+	apiVersion := "v1"
+	baseURL := fmt.Sprintf("/%s/%s/address/", apiName, apiVersion)
+	allURL := baseURL + appconstant.ALL
 
 	// Test case for GET /v1/address/all
 	gk.Describe("GET"+allURL, func() {
@@ -161,6 +170,70 @@ var _ = gk.Describe("Address API", func() {
 				gm.Expect(addressList["1268408"].IsDefaultBilling).To(gm.Equal("0"))
 				gm.Expect(addressList["1268408"].IsDefaultShipping).To(gm.Equal("0"))
 				gm.Expect(addressList["1268408"].Id).To(gm.Equal("1268408"))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/all user not found
+	gk.Describe("GET"+allURL, func() {
+		request := CreateTestRequest("GET", allURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", "1")
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 0 addresses", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(0))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/shipping user not found
+	gk.Describe("GET"+shippingURL, func() {
+		request := CreateTestRequest("GET", shippingURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", "1")
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 0 addresses", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(0))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/billing user not found
+	gk.Describe("GET"+billingURL, func() {
+		request := CreateTestRequest("GET", billingURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", "1")
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 0 addresses", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(0))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/other user not found
+	gk.Describe("GET"+otherURL, func() {
+		request := CreateTestRequest("GET", otherURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", "1")
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 0 addresses", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(0))
 			})
 		})
 	})
