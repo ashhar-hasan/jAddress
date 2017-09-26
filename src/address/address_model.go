@@ -325,9 +325,9 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e ch
 func getAddressTypeSql(ty string) string {
 	var updateTypeField string
 	if ty == appconstant.BILLING {
-		updateTypeField = ` is_default_billing = 1, is_default_shipping = 0`
+		updateTypeField = ` is_default_billing = 1`
 	} else if ty == appconstant.SHIPPING {
-		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
+		updateTypeField = ` is_default_shipping = 1`
 	}
 	return updateTypeField
 }
