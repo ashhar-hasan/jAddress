@@ -3,10 +3,11 @@ package address
 import (
 	"common/appconstant"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	fconstants "github.com/jabong/florest-core/src/common/constants"
-
 	gk "github.com/onsi/ginkgo"
 	gm "github.com/onsi/gomega"
 )
@@ -16,8 +17,13 @@ func TestAddress(t *testing.T) {
 	gk.RunSpecs(t, "Address Suite")
 }
 
-var userID = "1773895"
-var sessionID = "12345678901234567890"
+const (
+	userID           = "1773895"
+	sessionID        = "12345678901234567890"
+	invalidUserID    = "1"
+	invalidSessionID = "abcd"
+	updateAddressID  = "35495082"
+)
 
 var _ = gk.Describe("Address API", func() {
 	InitializeTestService()
@@ -67,7 +73,7 @@ var _ = gk.Describe("Address API", func() {
 			gk.It("should return user id missing in headers", func() {
 				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
 				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
-				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.APPErrorCode(1401)))
+				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.ParamsInSufficientErrorCode))
 				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("UserId must be provided in request header"))
 			})
 		})
@@ -83,20 +89,28 @@ var _ = gk.Describe("Address API", func() {
 			gk.It("should return session id missing in headers", func() {
 				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
 				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
-				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.APPErrorCode(1401)))
+				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.ParamsInSufficientErrorCode))
 				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("SessionId must be provided in request header"))
 			})
 		})
 	})
-})
 
-var _ = gk.Describe("GET Address API", func() {
-	InitializeTestService()
+	// Test case for invalid X-Jabong-SessionId
+	gk.Describe("GET"+allURL, func() {
+		request := CreateTestRequest("GET", allURL)
+		request.Header.Add("X-Jabong-SessionId", invalidSessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		response := GetResponse(request)
 
-	apiName := "AddressService"
-	apiVersion := "v1"
-	baseURL := fmt.Sprintf("/%s/%s/address/", apiName, apiVersion)
-	allURL := baseURL + appconstant.ALL
+		gk.Context("then the response", func() {
+			gk.It("should return invalid session id", func() {
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
+				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.ParamsInValidErrorCode))
+				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("SessionId is invalid"))
+			})
+		})
+	})
 
 	// Test case for GET /v1/address/all
 	gk.Describe("GET"+allURL, func() {
@@ -110,6 +124,38 @@ var _ = gk.Describe("GET Address API", func() {
 				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
 				MatchSuccessResponseStatus(responseBody)
 				gm.Expect(addressResult.Summary.Count).To(gm.Equal(3))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/all?limit=1
+	gk.Describe("GET"+allURL+"?limit=1", func() {
+		request := CreateTestRequest("GET", allURL+"?limit=1")
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 1 address", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(1))
+			})
+		})
+	})
+
+	// Test case for GET /v1/address/all?offset=1
+	gk.Describe("GET"+allURL+"?offset=1", func() {
+		request := CreateTestRequest("GET", allURL+"?offset=1")
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return 2 addresses", func() {
+				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				gm.Expect(addressResult.Summary.Count).To(gm.Equal(2))
 			})
 		})
 	})
@@ -178,7 +224,7 @@ var _ = gk.Describe("GET Address API", func() {
 	gk.Describe("GET"+allURL, func() {
 		request := CreateTestRequest("GET", allURL)
 		request.Header.Add("X-Jabong-SessionId", sessionID)
-		request.Header.Add("X-Jabong-UserId", "1")
+		request.Header.Add("X-Jabong-UserId", invalidUserID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -194,7 +240,7 @@ var _ = gk.Describe("GET Address API", func() {
 	gk.Describe("GET"+shippingURL, func() {
 		request := CreateTestRequest("GET", shippingURL)
 		request.Header.Add("X-Jabong-SessionId", sessionID)
-		request.Header.Add("X-Jabong-UserId", "1")
+		request.Header.Add("X-Jabong-UserId", invalidUserID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -210,7 +256,7 @@ var _ = gk.Describe("GET Address API", func() {
 	gk.Describe("GET"+billingURL, func() {
 		request := CreateTestRequest("GET", billingURL)
 		request.Header.Add("X-Jabong-SessionId", sessionID)
-		request.Header.Add("X-Jabong-UserId", "1")
+		request.Header.Add("X-Jabong-UserId", invalidUserID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -226,7 +272,7 @@ var _ = gk.Describe("GET Address API", func() {
 	gk.Describe("GET"+otherURL, func() {
 		request := CreateTestRequest("GET", otherURL)
 		request.Header.Add("X-Jabong-SessionId", sessionID)
-		request.Header.Add("X-Jabong-UserId", "1")
+		request.Header.Add("X-Jabong-UserId", invalidUserID)
 		response := GetResponse(request)
 
 		gk.Context("then the response", func() {
@@ -234,6 +280,96 @@ var _ = gk.Describe("GET Address API", func() {
 				responseBody, addressResult, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
 				MatchSuccessResponseStatus(responseBody)
 				gm.Expect(addressResult.Summary.Count).To(gm.Equal(0))
+			})
+		})
+	})
+
+	// Test case for PUT /v1/address with missing addressId in path params
+	gk.Describe("PUT"+baseURL, func() {
+		request := CreateTestRequest("PUT", baseURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return versionable not found", func() {
+				MatchHeaderStatus(response)
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchVersionableNotFound(responseBody)
+			})
+		})
+	})
+
+	// Test case for PUT /v1/address with missing request body
+	putURL := baseURL + updateAddressID
+	gk.Describe("PUT"+putURL, func() {
+		request := CreateTestRequest("PUT", putURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		request.Body = ioutil.NopCloser(strings.NewReader(""))
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return missing request body", func() {
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
+				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.IncorrectDataErrorCode))
+				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("unexpected end of JSON input"))
+			})
+		})
+	})
+
+	// Test case for PUT /v1/address
+	gk.Describe("PUT"+putURL, func() {
+		request := CreateTestRequest("PUT", putURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		payload, _ := ioutil.ReadFile("../../config/testdata/put.json")
+		request.Body = ioutil.NopCloser(strings.NewReader(string(payload)))
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return successs", func() {
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+
+				// Create a new GET request to check if the address was updated successfully
+				request = CreateTestRequest("GET", allURL)
+				request.Header.Add("X-Jabong-SessionId", sessionID)
+				request.Header.Add("X-Jabong-UserId", userID)
+				response = GetResponse(request)
+				_, _, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
+				gm.Expect(addressList[updateAddressID].Phone).To(gm.Equal("9540786980"))
+			})
+		})
+	})
+
+	// Test case for PUT /v1/address?default=1
+	gk.Describe("PUT"+putURL+"?default=1", func() {
+		request := CreateTestRequest("PUT", putURL+"?default=1")
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		payload, _ := ioutil.ReadFile("../../config/testdata/put.json")
+		request.Body = ioutil.NopCloser(strings.NewReader(string(payload)))
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return successs", func() {
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+
+				// Create a new GET request to check if the address was updated successfully
+				request = CreateTestRequest("GET", allURL)
+				request.Header.Add("X-Jabong-SessionId", sessionID)
+				request.Header.Add("X-Jabong-UserId", userID)
+				response = GetResponse(request)
+				_, _, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
+				fmt.Printf("%+v", addressList)
+				gm.Expect(addressList[updateAddressID].IsDefaultShipping).To(gm.Equal("1"))
+				gm.Expect(addressList[updateAddressID].IsDefaultBilling).To(gm.Equal("1"))
+				// Also ensure that the older default shipping address was reset
+				gm.Expect(addressList["35495058"].IsDefaultShipping).To(gm.Equal("0"))
+				gm.Expect(addressList["35495058"].IsDefaultBilling).To(gm.Equal("0"))
 			})
 		})
 	})
