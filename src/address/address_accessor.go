@@ -264,7 +264,13 @@ func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult
 	}
 
 	a.AddressList = addressResult[index]
-	a.Summary = AddressDetails{Count: 1, Type: addressType}
+	fmt.Println("addressList", a.AddressList)
+	if addressResult[index] != nil {
+		a.Summary = AddressDetails{Count: 1, Type: addressType}
+	} else {
+		fmt.Println("else")
+		a.Summary = AddressDetails{Count: 0, Type: addressType}
+	}
 	return a, nil
 
 }
