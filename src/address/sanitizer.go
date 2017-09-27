@@ -23,18 +23,14 @@ var (
 
 // Name makes a string safe to use by replacing non-ascii characters.
 func sanitize(s string, isValidateName bool) string {
-	// Start with lowercase string
-	str := strings.ToLower(s)
-	//str = path.Clean(path.Base(str))
-
 	// Remove illegal characters for names, replacing some common separators with -
 	if isValidateName {
-		str = cleanString(str, illegalCharsForName)
+		s = cleanString(s, illegalCharsForName)
 	} else {
-		str = cleanString(str, illegalChars)
+		s = cleanString(s, illegalChars)
 	}
 	// NB this may be of length 0, caller must check
-	return str
+	return s
 }
 
 // A very limited list of transliterations to catch common european names translated to urls.
