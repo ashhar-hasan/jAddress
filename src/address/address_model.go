@@ -75,7 +75,6 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	e := err.(*sqldb.SDBError)
 	if e != nil {
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, e.Error(), "customer_address"))
-		fmt.Println("Mysql Error while getting data from customer_address table", e.Error())
 		return nil, e
 	}
 
@@ -526,7 +525,6 @@ func checkDefaultAddressInDB(addressID int, userID string, debugInfo *Debug) (in
 	rows, err := db.Query(sql, addressID, userID)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, err.Error(), "customer_address"))
-		fmt.Println("Mysql Error while getting data from customer_address table", err.Error())
 		return -1, err
 	}
 	var shipping, billing int

@@ -25,7 +25,6 @@ func Initialise() {
 		panic("Failed to initialise Encryption Service" + err.Error())
 	}
 	if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
-		fmt.Println("err  ", err)
 		logger.Error(err)
 	}
 	if err = cache.Set(cache.Redis, appConfig.Cache.Redis, new(cache.RedisClientAdapter)); err != nil {
@@ -264,11 +263,9 @@ func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult
 	}
 
 	a.AddressList = addressResult[index]
-	fmt.Println("addressList", a.AddressList)
 	if addressResult[index] != nil {
 		a.Summary = AddressDetails{Count: 1, Type: addressType}
 	} else {
-		fmt.Println("else")
 		a.Summary = AddressDetails{Count: 0, Type: addressType}
 	}
 	return a, nil
