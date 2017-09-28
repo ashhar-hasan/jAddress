@@ -2,6 +2,7 @@ package address
 
 import (
 	"common/appconstant"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -18,11 +19,12 @@ func TestAddress(t *testing.T) {
 }
 
 const (
-	userID           = "1773895"
-	sessionID        = "12345678901234567890"
-	invalidUserID    = "1"
-	invalidSessionID = "abcd"
-	updateAddressID  = "35495082"
+	userID              = "1773895"
+	sessionID           = "12345678901234567890"
+	invalidUserID       = "1"
+	invalidSessionID    = "abcd"
+	updateAddressID     = "35495082"
+	oldDefaultAddressID = "35495058"
 )
 
 var _ = gk.Describe("Address API", func() {
@@ -327,6 +329,8 @@ var _ = gk.Describe("Address API", func() {
 		payload, _ := ioutil.ReadFile("../../config/testdata/put.json")
 		request.Body = ioutil.NopCloser(strings.NewReader(string(payload)))
 		response := GetResponse(request)
+		var expectedResponse AddressRequest
+		json.Unmarshal(payload, &expectedResponse)
 
 		gk.Context("then the response", func() {
 			gk.It("should return successs", func() {
@@ -339,7 +343,11 @@ var _ = gk.Describe("Address API", func() {
 				request.Header.Add("X-Jabong-UserId", userID)
 				response = GetResponse(request)
 				_, _, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
-				gm.Expect(addressList[updateAddressID].Phone).To(gm.Equal("9540786980"))
+				for _, addressResponse := range addressList {
+					if addressResponse.Id == updateAddressID {
+						matchPayloadWithResponse(addressResponse, expectedResponse)
+					}
+				}
 			})
 		})
 	})
@@ -352,6 +360,8 @@ var _ = gk.Describe("Address API", func() {
 		payload, _ := ioutil.ReadFile("../../config/testdata/put.json")
 		request.Body = ioutil.NopCloser(strings.NewReader(string(payload)))
 		response := GetResponse(request)
+		var expectedResponse AddressRequest
+		json.Unmarshal(payload, &expectedResponse)
 
 		gk.Context("then the response", func() {
 			gk.It("should return successs", func() {
@@ -364,13 +374,64 @@ var _ = gk.Describe("Address API", func() {
 				request.Header.Add("X-Jabong-UserId", userID)
 				response = GetResponse(request)
 				_, _, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
-				fmt.Printf("%+v", addressList)
+				for _, addressResponse := range addressList {
+					if addressResponse.Id == updateAddressID {
+						matchPayloadWithResponse(addressResponse, expectedResponse)
+					}
+				}
+				// Check that the new address is set as the default
 				gm.Expect(addressList[updateAddressID].IsDefaultShipping).To(gm.Equal("1"))
 				gm.Expect(addressList[updateAddressID].IsDefaultBilling).To(gm.Equal("1"))
 				// Also ensure that the older default shipping address was reset
-				gm.Expect(addressList["35495058"].IsDefaultShipping).To(gm.Equal("0"))
-				gm.Expect(addressList["35495058"].IsDefaultBilling).To(gm.Equal("0"))
+				gm.Expect(addressList[oldDefaultAddressID].IsDefaultShipping).To(gm.Equal("0"))
+				gm.Expect(addressList[oldDefaultAddressID].IsDefaultBilling).To(gm.Equal("0"))
 			})
 		})
 	})
+
+	// Test case for POST with missing body
+	postURL := baseURL
+	gk.Describe("POST"+postURL, func() {
+		request := CreateTestRequest("POST", postURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		request.Body = ioutil.NopCloser(strings.NewReader(""))
+		response := GetResponse(request)
+
+		gk.Context("then the response", func() {
+			gk.It("should return missing request body", func() {
+				responseBody, _, _, _ := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchHTTPCode(responseBody, fconstants.HTTPStatusBadRequestCode)
+				gm.Expect(responseBody.Status.Errors[0].Code).To(gm.Equal(fconstants.IncorrectDataErrorCode))
+				gm.Expect(responseBody.Status.Errors[0].Message).To(gm.Equal("unexpected end of JSON input"))
+			})
+		})
+	})
+
+	// Test case for POST
+	gk.Describe("POST"+postURL, func() {
+		request := CreateTestRequest("POST", postURL)
+		request.Header.Add("X-Jabong-SessionId", sessionID)
+		request.Header.Add("X-Jabong-UserId", userID)
+		payload, _ := ioutil.ReadFile("../../config/testdata/post.json")
+		request.Body = ioutil.NopCloser(strings.NewReader(string(payload)))
+		response := GetResponse(request)
+		var expectedResponse AddressRequest
+		json.Unmarshal(payload, &expectedResponse)
+
+		gk.Context("then the response", func() {
+			gk.It("should return successs", func() {
+				responseBody, _, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
+				MatchSuccessResponseStatus(responseBody)
+				// Check that the new address is not default and that values are same as input values
+				for _, addressResponse := range addressList {
+					gm.Expect(addressResponse.IsDefaultBilling).To(gm.Equal("0"))
+					gm.Expect(addressResponse.IsDefaultShipping).To(gm.Equal("0"))
+					matchPayloadWithResponse(addressResponse, expectedResponse)
+				}
+			})
+		})
+	})
+
+	// Test case for POST /v1/address?default=1
 })
