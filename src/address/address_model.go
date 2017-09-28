@@ -99,11 +99,11 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 
 		index := string(id)
 		resp.Id = index
-		resp.FirstName = string(fname)
-		resp.LastName = string(lname)
-		resp.Address1 = string(address1)
-		resp.Address2 = string(address2)
-		resp.City = string(city)
+		resp.FirstName = sanitize(string(fname), true)
+		resp.LastName = sanitize(string(lname), true)
+		resp.Address1 = sanitize(string(address1), false)
+		resp.Address2 = sanitize(string(address2), false)
+		resp.City = sanitize(string(city), false)
 		resp.RegionName = string(region)
 		resp.AddressRegion = string(customerAddressRegionId)
 		resp.PostCode = string(postcode)
