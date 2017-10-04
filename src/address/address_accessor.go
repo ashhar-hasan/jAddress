@@ -5,7 +5,6 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -47,54 +46,61 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	var (
 		addressType   string = appconstant.ALL
 		addressResult map[string]*AddressResponse
+		orderList     []string
 		err           error
 	)
 
 	if params.QueryParams.AddressType != "" {
 		addressType = params.QueryParams.AddressType
 	}
-	addressResult, err = getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	addressResult, orderList, err = getAddressListFromCache(userID, params.QueryParams, debugInfo)
 	if len(addressResult) == 0 || addressResult == nil || err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "GetAddressList.Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Error in getting addresslist from cache. Error::" + err.Error()))
-		addressResult, err = getAddressList(params, "", debugInfo)
+		addressResult, orderList, err = getAddressList(params, "", debugInfo)
 		if err != nil {
 			logger.Error(fmt.Sprintf("error in getting the address list - %v", err))
 			return a, err
 		}
 	}
+	fmt.Println(addressResult)
+	fmt.Println(orderList)
 	start := params.QueryParams.Offset
 	end := params.QueryParams.Offset + params.QueryParams.Limit
 	addressFiltered := make(map[string]*AddressResponse, 0)
-
+	orderFiltered := make([]string, 0)
 	if addressType == "all" || params.QueryParams.AddressType == "" {
 		if params.QueryParams.Limit != 0 {
 			addressFiltered = addressResult //[start:end]
+			orderFiltered = orderList
 		}
 	} else {
 		for k, v := range addressResult {
 			if addressType == "other" {
 				if v.IsDefaultShipping == "0" && v.IsDefaultBilling == "0" {
 					addressFiltered[k] = v
+					orderFiltered = append(orderFiltered, k)
 				}
 			}
 		}
 	}
+	fmt.Println(addressFiltered)
 	if end > len(addressFiltered) {
 		end = len(addressFiltered)
 	}
 	if start > end {
 		start = end
 	}
-	keys := make([]string, 0)
-	for k, _ := range addressFiltered {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	// keys := make([]string, 0)
+	// for k, _ := range addressFiltered {
+	// 	keys = append(keys, k)
+	// }
+	// sort.Strings(keys)
 	temp := make(map[string]*AddressResponse)
 	for i := start; i < end; i++ {
-		temp[keys[i]] = addressFiltered[keys[i]]
+		temp[orderFiltered[i]] = addressFiltered[orderFiltered[i]]
 	}
+	fmt.Println(temp)
 	a.AddressList = temp
 	a.Summary = AddressDetails{Count: len(temp), Type: addressType}
 	return a, nil
@@ -113,6 +119,9 @@ func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 	if cacheErr != nil {
 		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
 		err := invalidateCache(cacheKey)
+		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+		cacheKey = GetAddressOrderCacheKey(params.RequestContext.UserID)
+		err = invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 	}
 
@@ -140,6 +149,9 @@ func UpdateType(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	if cacheErr != nil {
 		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
 		err := invalidateCache(cacheKey)
+		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s %v", cacheKey, err))
+		cacheKey = GetAddressOrderCacheKey(params.RequestContext.UserID)
+		err = invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s %v", cacheKey, err))
 	}
 	e := make(chan error, 0)
@@ -174,12 +186,12 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 		return a, errors.New("Some error occured while adding new address")
 	}
 	id := fmt.Sprintf("%d", lastInsertedId)
-	addressResult, err := getAddressList(params, id, debugInfo)
+	addressResult, _, err := getAddressList(params, id, debugInfo)
 	if err != nil {
 		logger.Warning(fmt.Sprintf("Some error occured while getting address details after adding new address"), rc)
 	}
 	a.AddressList = addressResult
-
+	fmt.Println("yahan aaya")
 	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
 
 	// Set as default shipping address
@@ -216,6 +228,9 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 			cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
 			err := invalidateCache(cacheKey)
 			logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+			cacheKey = GetAddressOrderCacheKey(params.RequestContext.UserID)
+			err = invalidateCache(cacheKey)
+			logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 		}
 		e := make(chan error, 0)
 
@@ -241,11 +256,11 @@ func GetAddressTypeList(params *RequestParams, debugInfo *Debug) (*AddressResult
 	userID := rc.UserID
 	a := new(AddressResult)
 	addressType := params.QueryParams.AddressType
-	addressResult, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	addressResult, _, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 	if len(addressResult) == 0 || addressResult == nil || err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "GetAddressList.Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Error in getting addresslist from cache. Error::" + err.Error()))
-		addressResult, err = getAddressList(params, "", debugInfo)
+		addressResult, _, err = getAddressList(params, "", debugInfo)
 		if err != nil {
 			logger.Error(fmt.Sprintf("error in getting the address list - %v", err))
 			return a, err
@@ -277,7 +292,7 @@ func checkDefaultAddress(params *RequestParams, debugInfo *Debug) (int, error) {
 	userID := params.RequestContext.UserID
 	addressID := params.QueryParams.AddressId
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "CheckDefaultAddress", Value: "CheckDefaultAddress Execute"})
-	addressResult, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	addressResult, _, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 	if err != nil || len(addressResult) == 0 {
 		logger.Info(fmt.Sprintf("Address not found in cache for addressID: %d", params.QueryParams.AddressId))
 		val, err1 := checkDefaultAddressInDB(addressID, userID, debugInfo)

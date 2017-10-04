@@ -46,7 +46,7 @@ func getRegionId(regionId string, debug *Debug) (id string, countryId string, er
 	return rid, countryId, nil
 }
 
-func getAddressList(params *RequestParams, addressId string, debug *Debug) (address map[string]*AddressResponse, err error) {
+func getAddressList(params *RequestParams, addressId string, debug *Debug) (address map[string]*AddressResponse, order []string, err error) {
 	db, err := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("address-address_model-getAddressList")
@@ -57,7 +57,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	rc := params.RequestContext
 	customerId := rc.UserID
 	if customerId == "" {
-		return nil, errors.New("CustomerID not present")
+		return nil, nil, errors.New("CustomerID not present")
 	}
 
 	sql := `SELECT DISTINCT(ca.id_customer_address) as id,ca.first_name, ca.last_name, ca.phone, IFNULL(ca.alternate_phone, ""), ca.address1, ca.address2, ca.city, ca.is_default_billing, ca.is_default_shipping, ca.fk_customer, ca.created_at, ca.updated_at, r.name AS region, r.id_customer_address_region, postcode, country.id_country as country, adi.sms_opt, IFNULL(ca.address_type, 0)
@@ -75,7 +75,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	e := err.(*sqldb.SDBError)
 	if e != nil {
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, e.Error(), "customer_address"))
-		return nil, e
+		return nil, nil, e
 	}
 
 	addresses := make(map[string]*AddressResponse, 0)
@@ -127,25 +127,30 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		encFields.EncryptedAlternatePhone = string(altPhone)
 		encryptedFields = append(encryptedFields, encFields)
 		addresses[index] = resp
+		order = append(order, index)
 	}
 	if len(encryptedFields) != 0 {
 		res, err := decryptEncryptedFields(encryptedFields, params, debug)
 		if err != nil {
 			logger.Error("PhoneDecryption: Error while parsing Decryption Service Response")
-			return nil, &constants.AppError{Code: constants.ResourceErrorCode, Message: "DecryptEncryptedFields: Error while parsing Decryption Service Response"}
+			return nil, nil, &constants.AppError{Code: constants.ResourceErrorCode, Message: "DecryptEncryptedFields: Error while parsing Decryption Service Response"}
 		}
 		mergeDecryptedFieldsWithAddressResult(res, &addresses)
 	}
 
 	if addressId == "" {
 		if len(addresses) != 0 {
+			err = saveOrderInCache(customerId, order)
+			if err != nil {
+				logger.Error("getAddressList:Could not update Order in cache. ", err.Error())
+			}
 			err = saveDataInCache(customerId, addresses)
 			if err != nil {
 				logger.Error("getAddressList:Could not update addressList in cache. ", err.Error())
 			}
 		}
 	}
-	return addresses, nil
+	return addresses, order, nil
 }
 
 func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
@@ -264,6 +269,8 @@ func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
 			txObj.Rollback()
 			key := GetAddressListCacheKey(userId)
 			invalidateCache(key)
+			key = GetAddressOrderCacheKey(userId)
+			invalidateCache(key)
 		}
 		err = txObj.Commit()
 		if err != nil {
@@ -315,6 +322,8 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e ch
 	}
 	if cacheErr != nil {
 		key := GetAddressListCacheKey(userId)
+		invalidateCache(key)
+		key = GetAddressOrderCacheKey(userId)
 		invalidateCache(key)
 	}
 	e <- nil
@@ -405,6 +414,8 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 		txObj.Rollback()
 		key := GetAddressListCacheKey(userId)
 		invalidateCache(key)
+		key = GetAddressOrderCacheKey(userId)
+		invalidateCache(key)
 		logger.Error(fmt.Sprintf("Error while updating  address type|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
 		e <- err1
 	}
@@ -463,6 +474,8 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 					txObj.Rollback()
 					key := GetAddressListCacheKey(userId)
 					invalidateCache(key)
+					key = GetAddressOrderCacheKey(userId)
+					invalidateCache(key)
 					logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
 				}
 			}
@@ -484,7 +497,7 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 func isFirstAddress(userID string, debug *Debug) (bool, error) {
 	// Use cache before using DB
 	var e QueryParams
-	addressList, cacheErr := getAddressListFromCache(userID, e, debug)
+	addressList, _, cacheErr := getAddressListFromCache(userID, e, debug)
 	if cacheErr != nil || len(addressList) == 0 {
 		db, _ := sqldb.Get("mysdb")
 		prof := profiler.NewProfiler()

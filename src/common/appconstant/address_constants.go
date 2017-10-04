@@ -31,6 +31,7 @@ const (
 //Redis constants
 const (
 	ADDRESS_CACHE_KEY string = "address_list_key_%s"
+	ORDER_CACHE_KEY   string = "order_list_key_%s"
 )
 
 //Encryption service end points

@@ -189,7 +189,7 @@ func GetAddressListCacheKey(userID string) string {
 }
 
 //getAddressListFromCache get user's address list from cache
-func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug) (map[string]*AddressResponse, error) {
+func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug) (map[string]*AddressResponse, []string, error) {
 	p := profiler.NewProfiler()
 	p.StartProfile("AddressHelper#getAddressListFromCache")
 
@@ -198,30 +198,44 @@ func getAddressListFromCache(userId string, params QueryParams, debugInfo *Debug
 	}()
 
 	addressList := make(map[string]*AddressResponse)
+	orderList := make([]string, 0)
 	var address map[string]*AddressResponse
+	var order []string
 	cacheObj, errG := cache.Get(cache.Redis)
 	if errG != nil {
 		msg := fmt.Sprintf("Redis Config Error - %v", errG)
 		logger.Error(msg)
 	}
 	addressListCacheKey := GetAddressListCacheKey(userId)
+	orderCacheKey := GetAddressOrderCacheKey(userId)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:addressListCacheKey", Value: addressListCacheKey})
-	result, err := cacheObj.Get(addressListCacheKey, false, false)
+	result, err := cacheObj.Get(orderCacheKey, false, false)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error while getting order of address list from cache %s", err))
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting order of address list from cache::" + err.Error() + " for cache key::" + orderCacheKey})
+		return address, order, err
+	}
+	data := result.Value.(string)
+	byt := []byte(data)
+	if err := json.Unmarshal(byt, &orderList); err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache-Orderlist.UnmarshalErr", Value: err.Error()})
+		return address, order, err
+	}
+	result, err = cacheObj.Get(addressListCacheKey, false, false)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error while getting address list from cache %s", err))
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting address list from cache::" + err.Error() + " for cache key::" + addressListCacheKey})
-		return address, err
+		return address, order, err
 	}
-
-	data := result.Value.(string)
-	byt := []byte(data)
+	data = result.Value.(string)
+	byt = []byte(data)
 	if err := json.Unmarshal(byt, &addressList); err != nil {
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache.UnmarshalErr", Value: err.Error()})
-		return address, err
+		return address, order, err
 	}
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Result", Value: fmt.Sprintf("%+v", addressList)})
 
-	return addressList, nil
+	return addressList, orderList, nil
 }
 
 //saveDataInCache save data in cache
@@ -268,7 +282,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 	userID := rc.UserID
 	address := params.QueryParams.Address
 
-	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	addressList, _, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error while fetching address list from Cache"), rc)
@@ -319,28 +333,36 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	defer func() {
 		p.EndProfileWithMetric([]string{"AddressHelper#updateAddressListInCache"})
 	}()
-
+	fmt.Println("yahan bhi aaya")
 	rc := params.RequestContext
 	userID := rc.UserID
-	address, _ := getAddressList(params, addressID, debug)
+	address, _, _ := getAddressList(params, addressID, debug)
 
-	addressList, err := getAddressListFromCache(userID, params.QueryParams, debug)
+	addressList, orderList, err := getAddressListFromCache(userID, params.QueryParams, debug)
 	if err != nil {
 		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
 	}
+	fmt.Println("pehle", orderList)
 	if addressList == nil {
 		addressList = make(map[string]*AddressResponse, 0)
 		addressList[addressID] = address[addressID]
+
 	}
+	orderList = append(orderList, addressID)
+	fmt.Println(orderList)
 	addressList[addressID] = address[addressID]
 	err = saveDataInCache(userID, addressList)
-
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
-
 	if err != nil {
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache.saveDataInCache:Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Could not update addressList in cache. %s", err.Error()), rc)
 	}
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
+	err = saveOrderInCache(userID, orderList)
+	if err != nil {
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache.saveOrderInCache:Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Could not update order of addressList in cache. %s", err.Error()), rc)
+	}
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "saveOrderInCache:cacheKey", Value: GetAddressOrderCacheKey(userID)})
 }
 
 func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address map[string]*AddressResponse, err error) {
@@ -353,7 +375,7 @@ func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address ma
 	userId := rc.UserID
 	addressId := fmt.Sprintf("%d", params.QueryParams.AddressId)
 
-	addressList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
+	addressList, orderList, err := getAddressListFromCache(userId, params.QueryParams, debugInfo)
 	if err != nil {
 		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not retrieve address list from Cache"), rc)
 		return address, errors.New("Could not retrieve address list from Cache")
@@ -364,6 +386,20 @@ func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address ma
 	if err != nil {
 		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update address list in Cache while deleting. "+err.Error()), rc)
 		return address, errors.New("Could not update address list in Cache while deleting. " + err.Error())
+	}
+	var index int
+	var value string
+	for index, value = range orderList {
+		if value == addressId {
+			break
+		}
+	}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "deleteAddressFromCache:index", Value: fmt.Sprintf("%d", index)})
+	orderList = append(orderList[:index], orderList[index+1:]...)
+	err = saveOrderInCache(userId, orderList)
+	if err != nil {
+		logger.Error(fmt.Sprintf("deleteAddressFromCache: Could not update order of address list in Cache while deleting. "+err.Error()), rc)
+		return address, errors.New("Could not update order of address list in Cache while deleting. " + err.Error())
 	}
 	return addressList, nil
 }
@@ -394,7 +430,7 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 	rc := params.RequestContext
 	userID := rc.UserID
 	addressID := fmt.Sprintf("%d", params.QueryParams.AddressId)
-	addressList, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	addressList, _, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
 
 	if err != nil {
 		msg := "Error while fetching address list from cache"
@@ -424,5 +460,39 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 		logger.Error(fmt.Sprintf("udpateTypeInCache: Could not update address in Cache"), rc)
 		return errors.New("Could not update address type in Cache")
 	}
+	return nil
+}
+
+func GetAddressOrderCacheKey(userID string) string {
+	return fmt.Sprintf(appconstant.ORDER_CACHE_KEY, userID)
+}
+
+func saveOrderInCache(id string, value interface{}) error {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#saveOrderInCache")
+
+	defer func() {
+		p.EndProfileWithMetric([]string{"AddressHelper#saveOrderInCache"})
+	}()
+
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+
+	var cacheKey string
+	cacheKey = GetAddressOrderCacheKey(id)
+	str, _ := json.Marshal(value)
+
+	item := cache.Item{}
+	item.Key = cacheKey
+	item.Value = string(str)
+
+	err := cacheObj.Set(item, false, false)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

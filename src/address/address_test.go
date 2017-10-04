@@ -214,6 +214,7 @@ var _ = gk.Describe("Address API", func() {
 			gk.It("should return 1 other addresses", func() {
 				responseBody, addressResult, _, addressList := GetHTTPResponseAndAddressResult(response.Body.String())
 				MatchSuccessResponseStatus(responseBody)
+				fmt.Printf("%+v,\n%s", addressList, response.Body.String())
 				gm.Expect(addressResult.Summary.Count).To(gm.Equal(1))
 				gm.Expect(addressList["1268408"].IsDefaultBilling).To(gm.Equal("0"))
 				gm.Expect(addressList["1268408"].IsDefaultShipping).To(gm.Equal("0"))
