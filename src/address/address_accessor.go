@@ -63,8 +63,6 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 			return a, err
 		}
 	}
-	fmt.Println(addressResult)
-	fmt.Println(orderList)
 	start := params.QueryParams.Offset
 	end := params.QueryParams.Offset + params.QueryParams.Limit
 	addressFiltered := make(map[string]*AddressResponse, 0)
@@ -84,7 +82,6 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 			}
 		}
 	}
-	fmt.Println(addressFiltered)
 	if end > len(addressFiltered) {
 		end = len(addressFiltered)
 	}
@@ -100,7 +97,6 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	for i := start; i < end; i++ {
 		temp[orderFiltered[i]] = addressFiltered[orderFiltered[i]]
 	}
-	fmt.Println(temp)
 	a.AddressList = temp
 	a.Summary = AddressDetails{Count: len(temp), Type: addressType}
 	return a, nil
@@ -191,8 +187,7 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 		logger.Warning(fmt.Sprintf("Some error occured while getting address details after adding new address"), rc)
 	}
 	a.AddressList = addressResult
-	fmt.Println("yahan aaya")
-	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+	updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
 
 	// Set as default shipping address
 	if params.QueryParams.Default == 1 && isFirst == false {

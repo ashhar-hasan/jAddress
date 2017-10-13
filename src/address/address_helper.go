@@ -333,7 +333,6 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	defer func() {
 		p.EndProfileWithMetric([]string{"AddressHelper#updateAddressListInCache"})
 	}()
-	fmt.Println("yahan bhi aaya")
 	rc := params.RequestContext
 	userID := rc.UserID
 	address, _, _ := getAddressList(params, addressID, debug)
@@ -342,14 +341,12 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 	if err != nil {
 		logger.Error(fmt.Sprintf("updateAddressListInCache::Error while fetching address list from Cache"), rc)
 	}
-	fmt.Println("pehle", orderList)
 	if addressList == nil {
 		addressList = make(map[string]*AddressResponse, 0)
 		addressList[addressID] = address[addressID]
 
 	}
 	orderList = append(orderList, addressID)
-	fmt.Println(orderList)
 	addressList[addressID] = address[addressID]
 	err = saveDataInCache(userID, addressList)
 	if err != nil {
