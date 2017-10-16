@@ -2,11 +2,7 @@ package address
 
 import (
 	"common/appconstant"
-	"errors"
 	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
@@ -77,103 +73,10 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 
 	updateParamsWithBuckets(&params, io)
 	updateParamsWithRequestContext(&params, io)
-	params.QueryParams.Default, err = utilHttp.GetIntParamFields(appHTTPReq.OriginalRequest, appconstant.URLPARAM_DEFAULT)
-	if err != nil {
-		params.QueryParams.Default = 0
-	}
-	if params.QueryParams.Default == 1 {
-		params.QueryParams.AddressType = appconstant.SHIPPING
-	}
-
-	if appHTTPReq.HTTPVerb == "DELETE" || appHTTPReq.HTTPVerb == "PUT" || appHTTPReq.HTTPVerb == "GET" {
-		// Update default billing/shipping address case
-		if len(*appHTTPReq.PathParameters) == 2 {
-			validateAndSetParamsForUpdate(&params, appHTTPReq)
-		}
-		derr1 := validateAndSetParams(&params, appHTTPReq)
-		if derr1 != nil {
-			return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr1.Error()}
-		}
-	}
-
+	updateDefaultInParams(&params, appHTTPReq)
 	logger.Debug(fmt.Sprintf("QueryParams : %+v", params), rc)
 	if derr := io.IOData.Set(appconstant.IO_REQUEST_PARAMS, &params); derr != nil {
 		return io, derr
 	}
 	return io, nil
-}
-
-//updateParamsWithBuckets updates buckets to params
-func updateParamsWithBuckets(params *RequestParams, io workflow.WorkFlowData) {
-	rc, _ := io.ExecContext.Get(constants.RequestContext)
-	bucketMap, err := io.ExecContext.GetBuckets()
-	if err != nil { //no need to return error as its not fatal issue
-		logger.Warning(fmt.Sprintf("err in retrieving buckets : %v", err), rc)
-	}
-	params.Buckets = bucketMap
-}
-
-//updateParamsWithRequestContext updates request context to params
-func updateParamsWithRequestContext(params *RequestParams, io workflow.WorkFlowData) {
-	rc, err := io.ExecContext.Get(constants.RequestContext)
-	if err != nil { //no need to return error as its not fatal issue
-		logger.Info(fmt.Sprintf("err in retrieving request context : %v", err), rc)
-	}
-	if v, ok := rc.(utilHttp.RequestContext); ok {
-		params.RequestContext = v
-	}
-}
-
-func validateAndSetParams(params *RequestParams, httpReq *utilHttp.Request) error {
-	if httpReq.HTTPVerb == "GET" {
-		val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSTYPE)
-		if val == "" {
-			val = appconstant.ALL
-		}
-		if val != appconstant.BILLING && val != appconstant.SHIPPING && val != appconstant.OTHER && val != appconstant.ALL {
-			return errors.New("AddressType should be one of all, billing, shipping or other")
-		}
-		params.QueryParams.AddressType = val
-		return nil
-	}
-	val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSID)
-	addressID, err := strconv.Atoi(val)
-	if err != nil {
-		return errors.New("Id is missing or not a number")
-	}
-	params.QueryParams.AddressId = addressID
-	return nil
-}
-
-func validateAndSetParamsForUpdate(params *RequestParams, httpReq *utilHttp.Request) error {
-	val := httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSID)
-	addressID, err := strconv.Atoi(val)
-	if err != nil {
-		return errors.New("Id is missing or not a number")
-	}
-	params.QueryParams.AddressId = addressID
-	val = httpReq.GetPathParameter(appconstant.URLPARAM_ADDRESSTYPE)
-	if val == "" {
-		return errors.New("Address Type is missing")
-	}
-	addressType, _ := validateAddressType(val)
-	if addressType == appconstant.ALL || addressType == appconstant.OTHER {
-		return errors.New("Address Type can be only be billing or shipping")
-	}
-	params.QueryParams.AddressType = addressType
-	return nil
-}
-
-func validateSession(sessionID *string) bool {
-	session := strings.Trim(*sessionID, " ")
-	ret := true
-	if len(session) <= 0 {
-		ret = false
-	} else {
-		r, _ := regexp.Compile("^[A-Za-z0-9-]{20,}$")
-		if r.MatchString(session) == false {
-			ret = false
-		}
-	}
-	return ret
 }

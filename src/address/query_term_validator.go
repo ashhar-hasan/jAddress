@@ -2,9 +2,7 @@ package address
 
 import (
 	"common/appconstant"
-	"errors"
 	"fmt"
-	"net/http"
 
 	constants "github.com/jabong/florest-core/src/common/constants"
 	logger "github.com/jabong/florest-core/src/common/logger"
@@ -49,51 +47,20 @@ func (a QueryTermValidator) Execute(io workflow.WorkFlowData) (workflow.WorkFlow
 	rp, _ := io.IOData.Get(constants.Request)
 	appHTTPReq, _ := rp.(*utilHttp.Request)
 	httpReq := appHTTPReq.OriginalRequest
+	if appHTTPReq.HTTPVerb == "DELETE" || appHTTPReq.HTTPVerb == "PUT" || appHTTPReq.HTTPVerb == "GET" {
+		// Update default billing/shipping address case
+		if len(*appHTTPReq.PathParameters) == 2 {
+			validateAndSetParamsForUpdate(params, appHTTPReq)
+		}
+		derr1 := validateAndSetParams(params, appHTTPReq)
+		if derr1 != nil {
+			return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: derr1.Error()}
+		}
+	}
 	err := validateAndSetURLParams(params, httpReq)
 	if err != nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: err.Error()}
 	}
 	logger.Info(fmt.Sprintf("params ----- > %+v", params), rc)
 	return io, nil
-}
-
-func validateAndSetURLParams(params *RequestParams, httpReq *http.Request) error {
-	var (
-		limit  = appconstant.DEFAULT_LIMIT
-		offset = appconstant.DEFAULT_OFFSET
-		err    error
-	)
-	if httpReq.FormValue("limit") != "" {
-		limit, err = utilHttp.GetIntParamFields(httpReq, appconstant.URLPARAM_LIMIT)
-		if err != nil {
-			return errors.New("Limit must be a valid number")
-		}
-	}
-	if limit > appconstant.MAX_LIMIT {
-		limit = appconstant.DEFAULT_LIMIT
-	}
-	params.QueryParams.Limit = limit
-	if httpReq.FormValue(appconstant.URLPARAM_OFFSET) != "" {
-		offset, err = utilHttp.GetIntParamFields(httpReq, appconstant.URLPARAM_OFFSET)
-		if err != nil {
-			return errors.New("Offset must be a number")
-		}
-	}
-	params.QueryParams.Offset = offset
-	return nil
-}
-
-func validateAddressType(str string) (addressType string, err error) {
-	if str == appconstant.BILLING {
-		addressType = appconstant.BILLING
-	} else if str == appconstant.SHIPPING {
-		addressType = appconstant.SHIPPING
-	} else if str == appconstant.OTHER {
-		addressType = appconstant.OTHER
-	} else if str == appconstant.ALL {
-		addressType = appconstant.ALL
-	} else {
-		return addressType, errors.New("Invalid address type. Possible types are billing, shipping, other, all")
-	}
-	return addressType, err
 }
