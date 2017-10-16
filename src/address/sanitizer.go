@@ -22,9 +22,9 @@ var (
 )
 
 // Name makes a string safe to use by replacing non-ascii characters.
-func sanitize(s string, isValidateName bool) string {
+func sanitize(str string, isValidateName bool) string {
 	// Start with lowercase string
-	str := strings.ToLower(s)
+	// str := strings.ToLower(s)
 	//str = path.Clean(path.Base(str))
 
 	// Remove illegal characters for names, replacing some common separators with -

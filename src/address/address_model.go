@@ -75,7 +75,6 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 	e := err.(*sqldb.SDBError)
 	if e != nil {
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, e.Error(), "customer_address"))
-		fmt.Println("Mysql Error while getting data from customer_address table", e.Error())
 		return nil, e
 	}
 
@@ -85,22 +84,23 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		var (
 			fname, lname, address1, address2, city, region, phone, altPhone, smsOpt                     []byte
 			id, isBilling, isShipping, fkCustomer, customerAddressRegionId, country, postcode, isOffice []byte
-			createdAt, updatedAt                                                                        time.Time
+			createdAt                                                                                   []byte
+			updatedAt                                                                                   time.Time
 		)
 		ad := AddressResponse{}
 		encFields := EncryptedFields{}
 
 		err = rows.Scan(&id, &fname, &lname, &phone, &altPhone, &address1, &address2, &city, &isBilling, &isShipping, &fkCustomer, &createdAt, &updatedAt, &region, &customerAddressRegionId, &postcode, &country, &smsOpt, &isOffice)
 		if err != nil {
-			logger.Warning(fmt.Println("Mysql Row Error while getting row from customer_address table", err))
+			logger.Warning(fmt.Sprintf("Mysql Row Error while getting row from customer_address table %s", err.Error()))
 			continue
 		}
 		ad.Id = string(id)
-		ad.FirstName = string(fname)
-		ad.LastName = string(lname)
-		ad.Address1 = string(address1)
-		ad.Address2 = string(address2)
-		ad.City = string(city)
+		ad.FirstName = sanitize(string(fname), true)
+		ad.LastName = sanitize(string(lname), true)
+		ad.Address1 = sanitize(string(address1), true)
+		ad.Address2 = sanitize(string(address2), true)
+		ad.City = sanitize(string(city), true)
 		ad.RegionName = string(region)
 		ad.AddressRegion = string(customerAddressRegionId)
 		ad.PostCode = string(postcode)
@@ -109,7 +109,13 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		ad.IsDefaultBilling = string(isBilling)
 		ad.IsDefaultShipping = string(isShipping)
 		ad.FkCustomer = string(fkCustomer)
-		ad.CreatedAt = createdAt.Format(appconstant.DATETIME_FORMAT)
+		createdAtStr := string(createdAt)
+		if createdAtStr == "" {
+			ad.CreatedAt = ""
+		} else {
+			createdAtTime, _ := time.Parse(time.RFC3339, createdAtStr)
+			ad.CreatedAt = createdAtTime.Format(appconstant.DATETIME_FORMAT)
+		}
 		ad.UpdatedAt = updatedAt.Format(appconstant.DATETIME_FORMAT)
 		ad.SmsOpt = string(smsOpt)
 
@@ -134,14 +140,14 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		if len(addresses) != 0 {
 			err = saveDataInCache(customerId, addresses)
 			if err != nil {
-				logger.Error(fmt.Println("getAddressList:Could not update addressList in cache. ", err.Error()))
+				logger.Error(fmt.Sprintf("getAddressList:Could not update addressList in cache. %s", err.Error()))
 			}
 		}
 	}
 	return addresses, nil
 }
 
-func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
+func addAddress(userID string, a AddressRequest, debug *Debug) (int64, bool, error) {
 	db, _ := sqldb.Get("mysdb")
 	prof := profiler.NewProfiler()
 	prof.StartProfile("AddressModel#addAddress")
@@ -150,42 +156,58 @@ func addAddress(userID string, a AddressRequest, debug *Debug) (int64, error) {
 		prof.EndProfileWithMetric([]string{"AddressModel#addAddress"})
 	}()
 
-	sql := `INSERT INTO customer_address SET first_name = ? , last_name = ? , address1 = ? , address2 = ?, phone = ?, alternate_phone = ?, city = ?, postcode = ?, fk_customer_address_region = ?, fk_country = ?, fk_customer = ?, address_type = ?, created_at = ?, validation_flag= ?`
+	sql := `INSERT INTO customer_address SET first_name=?, address1=?, phone=?, postcode=?, city=?, fk_customer_address_region=?, fk_country=?, fk_customer=?, created_at=?, validation_flag=?, last_name=?`
+	if a.Address2 != "" {
+		sql = sql + `, address2='` + a.Address2 + `'`
+	}
+	if a.AlternatePhone != "" {
+		sql = sql + `, alternate_phone='` + a.EncryptedAlternatePhone + `'`
+	}
+	if a.IsOffice != "" {
+		sql = sql + `, address_type='` + a.IsOffice + `'`
+	}
+	// Check if the user has any other addresses, if not, mark this as default
+	flag, err := isFirstAddress(userID, debug)
+	if flag == true {
+		sql = sql + `, is_default_shipping = 1, is_default_billing = 1`
+	} else if err != nil {
+		return 0, false, err
+	}
 
 	customerAddressRegion, countryID, err1 := getRegionId(a.AddressRegion, debug)
 	if err1 != nil {
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
-		return 0, err1
+		return 0, false, err1
 	}
-	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql})
+	debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "InsertAddressSql", Value: sql + fmt.Sprintf("%+v", a)})
 
 	// start and commit one txn: insert one row in table
 	txObj, terr := db.GetTxnObj()
 	if terr != nil {
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, terr.Error(), "customer_address"))
-		return 0, terr
+		return 0, false, terr
 	}
 	validationFlag := validateAddress(a.Address1 + a.Address2)
-	rows, err1 := txObj.Exec(sql, a.FirstName, a.LastName, a.Address1, a.Address2, a.EncryptedPhone, a.EncryptedAlternatePhone, a.City, a.PostCode, customerAddressRegion, countryID, userID, a.IsOffice, time.Now().Format(appconstant.DATETIME_FORMAT), validationFlag)
+	rows, err1 := txObj.Exec(sql, a.FirstName, a.Address1, a.EncryptedPhone, a.PostCode, a.City, customerAddressRegion, countryID, userID, time.Now().Format(appconstant.DATETIME_FORMAT), validationFlag, a.LastName)
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
-		return 0, err1
+		return 0, false, err1
 	}
 	err1 = txObj.Commit()
 	if err1 != nil {
 		txObj.Rollback()
 		logger.Error(fmt.Sprintf("AddAddress::CommitError::|%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
-		return 0, err1
+		return 0, false, err1
 	}
 	id, err1 := rows.LastInsertId()
 	if err1 != nil {
 		logger.Error(fmt.Sprintf("Mysql Error while retrieving last inserted row into customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"))
-		return 0, err1
+		return 0, false, err1
 	}
 	logger.Info(fmt.Sprintf("Last Insert Id %s", id))
 
-	return id, nil
+	return id, flag, nil
 }
 
 func updateAddressInDb(params *RequestParams, debugInfo *Debug) (err error) {
@@ -300,9 +322,9 @@ func deleteAddress(params *RequestParams, cacheErr error, debugInfo *Debug, e ch
 func getAddressTypeSql(ty string) string {
 	var updateTypeField string
 	if ty == appconstant.BILLING {
-		updateTypeField = ` is_default_billing = 1, is_default_shipping = 0`
+		updateTypeField = ` is_default_billing = 1`
 	} else if ty == appconstant.SHIPPING {
-		updateTypeField = ` is_default_shipping = 1, is_default_billing = 0`
+		updateTypeField = ` is_default_shipping = 1`
 	}
 	return updateTypeField
 }
@@ -398,6 +420,126 @@ func updateType(params *RequestParams, debugInfo *Debug, e chan error) {
 		e <- err1
 		return
 	}
+
+	addressTypeSQL := ""
+	if params.QueryParams.AddressType == appconstant.BILLING {
+		addressTypeSQL = ` is_default_billing = 1`
+	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
+		addressTypeSQL = ` is_default_shipping = 1`
+	}
+	query = `SELECT id_customer_address FROM customer_address WHERE ` + addressTypeSQL + ` AND fk_customer = ?`
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Sql", Value: query + userId})
+	rows, err := db.Query(query, userId)
+	if err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Err", Value: err.Error()})
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
+		e <- err
+		return
+	}
+	var addressID string
+	resetAddressTypeSql := ""
+	if params.QueryParams.AddressType == appconstant.BILLING {
+		resetAddressTypeSql = `is_default_billing = 0`
+	} else if params.QueryParams.AddressType == appconstant.SHIPPING {
+		resetAddressTypeSql = `is_default_shipping = 0`
+	}
+
+	resetQuery := `UPDATE customer_address SET ` + resetAddressTypeSql + ` WHERE id_customer_address = ?`
+	for rows.Next() {
+		err1 := rows.Scan(&addressID)
+		if err1 != nil {
+			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "resetDefaultAddress#Err", Value: err1.Error()})
+			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
+			e <- err1
+			return
+		}
+		txObj, terr := db.GetTxnObj()
+		if terr == nil {
+			if addressID != strconv.Itoa(params.QueryParams.AddressId) {
+				_, err1 = txObj.Exec(resetQuery, addressID)
+				if err1 != nil {
+					txObj.Rollback()
+					key := GetAddressListCacheKey(userId)
+					invalidateCache(key)
+					logger.Error(fmt.Sprintf("Error while updating user address |%s|%s|%s", appconstant.MYSQL_ERROR, err1.Error(), "customer_address"), rc)
+				}
+			}
+		} else {
+			logger.Error(fmt.Sprintf("Transaction Error:: Error while updating user address |%s|%s", appconstant.MYSQL_ERROR, terr), rc)
+		}
+		err1 = txObj.Commit()
+		if err != nil {
+			txObj.Rollback()
+			debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "AddAddress::CommitTransactionError:", Value: err.Error()})
+			e <- err
+		}
+	}
+
 	e <- nil
 	return
+}
+
+func isFirstAddress(userID string, debug *Debug) (bool, error) {
+	// Use cache before using DB
+	var e QueryParams
+	addressList, cacheErr := getAddressListFromCache(userID, e, debug)
+	if cacheErr != nil || len(addressList) == 0 {
+		db, _ := sqldb.Get("mysdb")
+		prof := profiler.NewProfiler()
+		prof.StartProfile("AddressModel#isFirstAddress")
+
+		defer func() {
+			prof.EndProfileWithMetric([]string{"AddressModel#isFirstAddress"})
+		}()
+
+		sql := `SELECT COUNT(id_customer_address) FROM customer_address WHERE fk_customer = ?`
+		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql", Value: sql + userID})
+		rows, err := db.Query(sql, userID)
+		if err != nil {
+			debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err.Error()})
+			logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err.Error()))
+			return false, err
+		}
+		count := 1
+		if rows.Next() {
+			err1 := rows.Scan(&count)
+			if err1 != nil {
+				debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "isFirstAddressSql#Err", Value: err1.Error()})
+				logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address |%s|%s", appconstant.MYSQL_ERROR, err1.Error()))
+				return false, err1
+			}
+		}
+		return (count == 0), nil
+
+	}
+	return false, nil
+}
+
+func checkDefaultAddressInDB(addressID int, userID string, debugInfo *Debug) (int, error) {
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "checkDefaultAddressInDB", Value: "checkDefaultAddressInDB execute"})
+	db, _ := sqldb.Get("mysdb")
+	sql := "SELECT is_default_shipping,is_default_billing FROM customer_address WHERE id_customer_address=? AND fk_customer=?"
+	rows, err := db.Query(sql, addressID, userID)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, err.Error(), "customer_address"))
+		return -1, err
+	}
+	var shipping, billing int
+
+	if rows.Next() {
+
+		err1 := rows.Scan(&shipping, &billing)
+		if err1 != nil {
+			logger.Warning(fmt.Sprintf("checkDefaultAddressInDB : Mysql Row Error while getting row from customer_address table", err1))
+		}
+		if billing == 1 {
+			return 1, nil
+		} else if shipping == 1 {
+			return 2, nil
+		} else {
+			return 0, nil
+		}
+
+	}
+	return 0, nil
 }

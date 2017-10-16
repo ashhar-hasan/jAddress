@@ -5,10 +5,12 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
+	"strconv"
 
-	"github.com/jabong/florest-core/src/common/config"
 	logger "github.com/jabong/florest-core/src/common/logger"
 	"github.com/jabong/florest-core/src/common/profiler"
+	"github.com/jabong/florest-core/src/components/cache"
+	"github.com/jabong/florest-core/src/components/sqldb"
 )
 
 var encryptServiceObj *EncryptionService
@@ -16,15 +18,17 @@ var encryptServiceObj *EncryptionService
 //Initialise initialises Address Accessor
 func Initialise() {
 	var err error
-	c := config.GlobalAppConfig.ApplicationConfig
-	appConfig, _ := c.(*appconfig.AddressServiceConfig)
-	encConfHost := appConfig.EncryptionServiceConfig.Host
-	encConfReqTimeOut := appConfig.EncryptionServiceConfig.ReqTimeout
-	encryptServiceObj, err = InitEncryptionService(encConfHost, encConfReqTimeOut)
+	appConfig, _ := appconfig.GetAddressServiceConfig()
+	encryptServiceObj, err = InitEncryptionService(appConfig.EncryptionServiceConfig.Host, appConfig.EncryptionServiceConfig.ReqTimeout)
 	if err != nil {
 		panic("Failed to initialise Encryption Service" + err.Error())
 	}
-
+	if err = sqldb.Set("mysdb", appConfig.MySqlConfig.MySqlMaster, new(sqldb.MysqlDriver)); err != nil {
+		logger.Error(err)
+	}
+	if err = cache.Set(cache.Redis, appConfig.Cache.Redis, new(cache.RedisClientAdapter)); err != nil {
+		logger.Error(err)
+	}
 	logger.Info(fmt.Sprintf("Address Service Accessor Initialize"))
 }
 
@@ -61,10 +65,27 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	start := params.QueryParams.Offset
 	end := params.QueryParams.Offset + params.QueryParams.Limit
 	addressFiltered := make([]AddressResponse, 0)
-
 	if params.QueryParams.AddressType == "all" || params.QueryParams.AddressType == "" {
 		if params.QueryParams.Limit != 0 {
-			addressFiltered = addressResult //[start:end]
+			addressFiltered = addressResult
+			billing, shipping := false, false
+			for k, v := range addressFiltered {
+				if billing && shipping {
+					break
+				}
+				if v.IsDefaultBilling == "1" && v.IsDefaultShipping == "1" {
+					addressFiltered[0], addressFiltered[k] = addressFiltered[k], addressFiltered[0]
+					break
+				}
+				if !shipping && v.IsDefaultShipping == "1" {
+					addressFiltered[1], addressFiltered[k] = addressFiltered[k], addressFiltered[1]
+					shipping = true
+				}
+				if !billing && v.IsDefaultBilling == "1" {
+					addressFiltered[0], addressFiltered[k] = addressFiltered[k], addressFiltered[0]
+					billing = true
+				}
+			}
 		}
 	} else {
 		for _, v := range addressResult {
@@ -91,7 +112,7 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	}
 	addressResult = addressFiltered[start:end]
 	a.AddressList = addressResult
-	a.Summery = AddressDetails{Count: len(addressResult), Type: addressType}
+	a.Summary = AddressDetails{Count: len(addressResult), Type: addressType}
 	return a, nil
 }
 
@@ -110,8 +131,16 @@ func UpdateAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		err := invalidateCache(cacheKey)
 		logger.Error(fmt.Sprintf("UpdateAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
 	}
-	go updateAddressInDb(params, debugInfo)
 	a := new(AddressResult)
+	if params.QueryParams.Default == 1 {
+		_, err := UpdateType(params, debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
+			return a, errors.New("Some error occurred while setting the default address")
+		}
+	}
+
+	go updateAddressInDb(params, debugInfo)
 	return a, nil
 }
 func UpdateType(params *RequestParams, debugInfo *Debug) (*AddressResult, error) {
@@ -148,21 +177,26 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 	userId := rc.UserID
 	addressData := params.QueryParams.Address
 
-	lastInsertedId, err := addAddress(userId, addressData, debugInfo)
-
+	lastInsertedId, isFirst, err := addAddress(userId, addressData, debugInfo)
+	params.QueryParams.AddressId = int(lastInsertedId)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error in adding new address in db - %v", err), rc)
 		return a, errors.New("Some error occured while adding new address")
 	}
 	id := fmt.Sprintf("%d", lastInsertedId)
+	updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+	if params.QueryParams.Default == 1 && isFirst == false {
+		_, err := UpdateType(params, debugInfo)
+		if err != nil {
+			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
+			return a, errors.New("Some error occurred while setting the default address")
+		}
+	}
 	addressResult, err := getAddressList(params, id, debugInfo)
 	if err != nil {
 		logger.Warning(fmt.Sprintf("Some error occured while getting address details after adding new address"), rc)
 	}
 	a.AddressList = addressResult
-
-	go updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
-
 	return a, nil
 }
 
@@ -173,21 +207,65 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 		prof.EndProfileWithMetric([]string{"address-address_accessor-DeleteAddress"})
 	}()
 	a := new(AddressResult)
-	addressResult, cacheErr := deleteAddressFromCache(params, debugInfo)
-	if cacheErr != nil {
-		rc := params.RequestContext
-		cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
-		err := invalidateCache(cacheKey)
-		logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+	flag, err1 := checkDefaultAddress(params, debugInfo)
+	if err1 != nil {
+		return nil, err1
 	}
-	e := make(chan error, 0)
+	if flag == 1 {
+		return nil, errors.New("Cannot delete default billing address")
+	} else if flag == 2 {
+		return nil, errors.New("Select a different default delivery address first.")
+	} else {
+		addressResult, cacheErr := deleteAddressFromCache(params, debugInfo)
+		if cacheErr != nil {
+			rc := params.RequestContext
+			cacheKey := GetAddressListCacheKey(params.RequestContext.UserID)
+			err := invalidateCache(cacheKey)
+			logger.Error(fmt.Sprintf("DeleteAddress: Error while invalidating the cache key %s, %v", cacheKey, err), rc)
+		}
+		e := make(chan error, 0)
 
-	go deleteAddress(params, cacheErr, debugInfo, e) //Delete Adddress From DB
+		go deleteAddress(params, cacheErr, debugInfo, e) //Delete Adddress From DB
 
-	err := <-e
-	if err != nil {
-		return nil, err
+		err := <-e
+		if err != nil {
+			return nil, err
+		}
+		a.AddressList = addressResult
+		return a, nil
 	}
-	a.AddressList = addressResult
-	return a, nil
+}
+
+func checkDefaultAddress(params *RequestParams, debugInfo *Debug) (int, error) {
+
+	userID := params.RequestContext.UserID
+	addressID := params.QueryParams.AddressId
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "CheckDefaultAddress", Value: "CheckDefaultAddress Execute"})
+	addressResult, err := getAddressListFromCache(userID, params.QueryParams, debugInfo)
+	if err != nil || len(addressResult) == 0 {
+		logger.Info(fmt.Sprintf("Address not found in cache for addressID: %d", params.QueryParams.AddressId))
+		val, err1 := checkDefaultAddressInDB(addressID, userID, debugInfo)
+		if err1 != nil {
+			return 0, err1
+		}
+		return val, nil
+	}
+	addID := strconv.Itoa(addressID)
+	index := -1
+	flag := false
+	for k, v := range addressResult {
+		if v.Id == addID {
+			index = k
+			flag = true
+			break
+		}
+	}
+	if flag {
+		if addressResult[index].IsDefaultBilling == "1" {
+			return 1, nil
+		} else if addressResult[index].IsDefaultShipping == "1" {
+			return 2, nil
+		}
+	}
+	return 0, nil
 }

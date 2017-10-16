@@ -4,7 +4,9 @@ import (
 	"common/appconstant"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/jabong/florest-core/src/common/constants"
 	"github.com/jabong/florest-core/src/common/logger"
@@ -51,9 +53,13 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 	if !pOk || appHTTPReq == nil {
 		return io, &constants.AppError{Code: constants.IncorrectDataErrorCode, Message: "Invalid request params"}
 	}
-	sessionID, err := io.ExecContext.Get(appconstant.SESSION_ID)
+	sessionIDInt, err := io.ExecContext.Get(appconstant.SESSION_ID)
+	sessionID, _ := sessionIDInt.(string)
 	if sessionID == "" || err != nil {
 		return io, &constants.AppError{Code: constants.ParamsInSufficientErrorCode, Message: "SessionId must be provided in request header"}
+	}
+	if validateSession(&sessionID) == false {
+		return io, &constants.AppError{Code: constants.ParamsInValidErrorCode, Message: "SessionId is invalid"}
 	}
 	userID, rerr := io.ExecContext.Get(appconstant.USER_ID)
 	if userID == "" || rerr != nil {
@@ -71,6 +77,13 @@ func (a QueryTermEnhancer) Execute(io workflow.WorkFlowData) (workflow.WorkFlowD
 
 	updateParamsWithBuckets(&params, io)
 	updateParamsWithRequestContext(&params, io)
+	params.QueryParams.Default, err = utilHttp.GetIntParamFields(appHTTPReq.OriginalRequest, appconstant.URLPARAM_DEFAULT)
+	if err != nil {
+		params.QueryParams.Default = 0
+	}
+	if params.QueryParams.Default == 1 {
+		params.QueryParams.AddressType = appconstant.SHIPPING
+	}
 
 	if appHTTPReq.HTTPVerb == "DELETE" || appHTTPReq.HTTPVerb == "PUT" || appHTTPReq.HTTPVerb == "GET" {
 		// Update default billing/shipping address case
@@ -117,6 +130,9 @@ func validateAndSetParams(params *RequestParams, httpReq *utilHttp.Request) erro
 		if val == "" {
 			val = appconstant.ALL
 		}
+		if val != appconstant.BILLING && val != appconstant.SHIPPING && val != appconstant.OTHER && val != appconstant.ALL {
+			return errors.New("AddressType should be one of all, billing, shipping or other")
+		}
 		params.QueryParams.AddressType = val
 		return nil
 	}
@@ -146,4 +162,18 @@ func validateAndSetParamsForUpdate(params *RequestParams, httpReq *utilHttp.Requ
 	}
 	params.QueryParams.AddressType = addressType
 	return nil
+}
+
+func validateSession(sessionID *string) bool {
+	session := strings.Trim(*sessionID, " ")
+	ret := true
+	if len(session) <= 0 {
+		ret = false
+	} else {
+		r, _ := regexp.Compile("^[A-Za-z0-9-]{20,}$")
+		if r.MatchString(session) == false {
+			ret = false
+		}
+	}
+	return ret
 }

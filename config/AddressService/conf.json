@@ -22,10 +22,10 @@
     "GCPercentage": 1000
   },
   "ApplicationConfig": {
-    "MySqlConfig": {
+    "MySql": {
       "Master": {
         "Username": "root",
-        "Password": "rishabh",
+        "Password": "Rishabh@95",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",
@@ -35,7 +35,7 @@
       },
       "Slave": {
         "Username": "root",
-        "Password": "rishabh",
+        "Password": "Rishabh@95",
         "Host": "127.0.0.1",
         "Dbname": "address",
         "Port": "3306",
@@ -44,7 +44,7 @@
         "MaxIdleCon": 5
       }
     },
-    "EncryptionServiceConfig": {
+    "EncryptionService": {
       "Host": "http://180.179.157.160:8098",
       "ReqTimeout": "2000"
     },

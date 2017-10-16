@@ -5,6 +5,11 @@ const (
 	DATETIME_FORMAT = "2006-01-02 15:04:05"
 )
 
+//Expiration Time of cache key
+const (
+	EXPIRATION_TIME = 3600
+)
+
 //URL Params for address service
 const (
 	SESSION_ID        = "X-Jabong-SessionId"
@@ -21,6 +26,7 @@ const (
 	URLPARAM_ADDRESSID   = "addressId"
 	URLPARAM_POSTCODE    = "postcode"
 	URLPARAM_ADDRESSTYPE = "addressType"
+	URLPARAM_DEFAULT     = "default"
 )
 
 const (
@@ -30,6 +36,7 @@ const (
 //Redis constants
 const (
 	ADDRESS_CACHE_KEY string = "address_list_key_%s"
+	ORDER_CACHE_KEY   string = "order_list_key_%s"
 )
 
 //Encryption service end points
