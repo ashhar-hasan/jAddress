@@ -41,33 +41,42 @@ func (a *UpdateAddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 		logger.Error(fmt.Sprintln(err))
 	}
 
+	requestValidator := new(QueryTermValidator)
+	requestValidator.SetID("2")
+	err = updateAddressWorkflow.AddExecutionNode(requestValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
 	addressValidator := new(AddressValidator)
-	addressValidator.SetID("2")
+	addressValidator.SetID("3")
 	err = updateAddressWorkflow.AddExecutionNode(addressValidator)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
 	//Encrypt the mobile no. and alternate phone no.
 	addressDataEncryptor := new(DataEncryptor)
-	addressDataEncryptor.SetID("3")
+	addressDataEncryptor.SetID("4")
 	err = updateAddressWorkflow.AddExecutionNode(addressDataEncryptor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
 
 	addAddressExecutor := new(UpdateAddressExecutor)
-	addAddressExecutor.SetID("4")
+	addAddressExecutor.SetID("5")
 	err = updateAddressWorkflow.AddExecutionNode(addAddressExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
 
 	//Add the connection between the nodes
-	err = updateAddressWorkflow.AddConnection(queryTermEnhancer, addressValidator)
+	err = updateAddressWorkflow.AddConnection(queryTermEnhancer, requestValidator)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
-
+	err = updateAddressWorkflow.AddConnection(requestValidator, addressValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
 	err = updateAddressWorkflow.AddConnection(addressValidator, addressDataEncryptor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))

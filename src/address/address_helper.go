@@ -237,16 +237,18 @@ func saveDataInCache(id string, value interface{}) error {
 	defer func() {
 		p.EndProfileWithMetric([]string{"AddressHelper#saveDataInCache"})
 	}()
-
 	cacheObj, errG := cache.Get(cache.Redis)
 	if errG != nil {
 		msg := fmt.Sprintf("Redis Config Error - %v", errG)
 		logger.Error(msg)
+		return errG
 	}
 
 	var cacheKey string
 	cacheKey = GetAddressListCacheKey(id)
-	str, _ := json.Marshal(value)
+
+	addressFiltered := orderSaveData(value) // To maintain the order of billing,shipping,other
+	str, _ := json.Marshal(addressFiltered)
 
 	item := cache.Item{}
 	item.Key = cacheKey
@@ -320,6 +322,9 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 			addressList[index].AlternatePhone = address.AlternatePhone
 		}
 	}
+	if index == 0 && addressList[index].IsDefaultShipping == "1" {
+		addressList[1] = addressList[0]
+	}
 	err = saveDataInCache(userID, addressList)
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "saveDataInCache:cacheKey", Value: GetAddressListCacheKey(userID)})
 	if err != nil {
@@ -331,7 +336,7 @@ func udpateAddressInCache(params *RequestParams, debugInfo *Debug) error {
 }
 
 //updateAddressListInCache re-populate address list in cache
-func updateAddressListInCache(params *RequestParams, addressID string, debug *Debug) {
+func updateAddressListInCache(params *RequestParams, addressID string, debug *Debug) []AddressResponse {
 	p := profiler.NewProfiler()
 	p.StartProfile("AddressHelper#updateAddressListInCache")
 
@@ -372,6 +377,7 @@ func updateAddressListInCache(params *RequestParams, addressID string, debug *De
 		debug.MessageStack = append(debug.MessageStack, DebugInfo{Key: "updateAddressListInCache.saveDataInCache:Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Could not update addressList in cache. %s", err.Error()), rc)
 	}
+	return address
 }
 
 func deleteAddressFromCache(params *RequestParams, debugInfo *Debug) (address []AddressResponse, err error) {
@@ -458,6 +464,11 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 			break
 		}
 	}
+	if addressList[index].IsDefaultBilling == "1" && params.QueryParams.AddressType == appconstant.BILLING {
+		return nil
+	} else if addressList[index].IsDefaultShipping == "1" && params.QueryParams.AddressType == appconstant.SHIPPING {
+		return nil
+	}
 	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "udpateTypeInCache:index", Value: fmt.Sprintf("%d", index)})
 	if flag {
 		// addressList[index].AddressType = params.QueryParams.Address.AddressType
@@ -489,4 +500,168 @@ func updateTypeInCache(params *RequestParams, debugInfo *Debug) error {
 		return errors.New("Could not update address type in Cache")
 	}
 	return nil
+}
+
+func getFilteredListFromCache(userId string, params QueryParams, debugInfo *Debug) ([]interface{}, error) {
+	p := profiler.NewProfiler()
+	p.StartProfile("AddressHelper#getFilteredListFromCache")
+
+	defer func() {
+		p.EndProfileWithMetric([]string{"AddressHelper#getFilteredListFromCache"})
+	}()
+
+	var address []interface{}
+	cacheObj, errG := cache.Get(cache.Redis)
+	if errG != nil {
+		msg := fmt.Sprintf("Redis Config Error - %v", errG)
+		logger.Error(msg)
+	}
+	addressListCacheKey := GetAddressListCacheKey(userId)
+
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:addressListCacheKey", Value: addressListCacheKey})
+	result, err := cacheObj.Get(addressListCacheKey, false, false)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Error while getting address list from cache %s", err))
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Error", Value: "Error while getting address list from cache::" + err.Error()})
+		return address, err
+	}
+
+	var addressList []interface{}
+	data := result.Value.(string)
+	byt := []byte(data)
+	if err := json.Unmarshal(byt, &addressList); err != nil {
+		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache.UnmarshalErr", Value: err.Error()})
+		return address, err
+	}
+	debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "getAddressListFromCache:Result", Value: fmt.Sprintf("%+v", addressList)})
+	return addressList, nil
+}
+
+func orderSaveData(value interface{}) []AddressResponse {
+	data, _ := value.([]AddressResponse)
+
+	if len(data) == 1 {
+		data = append(data, data[0])
+		both = true
+		return data
+	} else {
+		firstBilling, firstShipping := data[0].IsDefaultBilling, data[0].IsDefaultShipping
+		secondBilling, secondShipping := data[1].IsDefaultBilling, data[1].IsDefaultShipping
+		if firstBilling == "1" && firstShipping == "1" && secondBilling == "1" && secondShipping == "1" {
+			both = true
+			return data
+		} else if firstBilling == "1" && firstShipping == "1" && secondBilling == "0" && secondShipping == "0" {
+			temp := data[1]
+			data[1] = data[0]
+			data = append(data, temp)
+			both = true
+			return data
+		} else if firstBilling == "1" && firstShipping == "0" && secondBilling == "1" && secondShipping == "0" {
+			flag := false
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultShipping == "1" {
+					flag = true
+					index = i
+					break
+				}
+
+			}
+			if flag {
+				data[1] = data[index]
+				data = deleteIndexFromData(data, index)
+			}
+		} else if firstBilling == "0" && firstShipping == "0" && secondBilling == "1" && secondShipping == "1" {
+			temp := data[0]
+			data[0] = data[1]
+			data = append(data, temp)
+			both = true
+			return data
+		} else if firstBilling == "0" && firstShipping == "1" && secondBilling == "0" && secondShipping == "1" {
+			flag := false
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultBilling == "1" {
+					flag = true
+					index = i
+					break
+				}
+			}
+			if flag {
+				data[0] = data[index]
+				data = deleteIndexFromData(data, index)
+			}
+		} else if firstBilling == "1" && firstShipping == "0" && secondBilling == "0" && secondShipping == "0" {
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultShipping == "1" {
+					index = i
+					break
+				}
+			}
+			data[1], data[index] = data[index], data[1]
+		} else if firstBilling == "0" && firstShipping == "0" && secondBilling == "0" && secondShipping == "1" {
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultBilling == "1" {
+					index = i
+					break
+				}
+			}
+			data[0], data[index] = data[index], data[0]
+		} else if firstBilling == "0" && firstShipping == "0" && secondBilling == "1" && secondShipping == "0" {
+			data[0], data[1] = data[1], data[0]
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultShipping == "1" {
+					index = i
+					break
+				}
+			}
+			data[1], data[index] = data[index], data[1]
+		} else if firstBilling == "0" && firstShipping == "0" && secondBilling == "0" && secondShipping == "0" {
+			index1 := -1
+			index2 := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultBilling == "1" {
+					index1 = i
+				}
+				if data[i].IsDefaultShipping == "1" {
+					index2 = i
+				}
+			}
+			data[0], data[index1] = data[index1], data[0]
+			data[1], data[index2] = data[index2], data[1]
+			if index1 == index2 {
+				temp := data[1]
+				data[1] = data[0]
+				data = append(data, temp)
+				both = true
+				return data
+			}
+		} else if firstBilling == "0" && firstShipping == "1" && secondBilling == "0" && secondShipping == "0" {
+			data[1], data[0] = data[0], data[1]
+			index := -1
+			for i := 2; i < len(data); i++ {
+				if data[i].IsDefaultBilling == "1" {
+					index = i
+					break
+				}
+			}
+			data[0], data[index] = data[index], data[0]
+		} else if firstBilling == "0" && firstShipping == "1" && secondBilling == "1" && secondShipping == "0" {
+			data[1], data[0] = data[0], data[1]
+		}
+	}
+	both = false
+	return data
+}
+
+func deleteIndexFromData(data []AddressResponse, index int) []AddressResponse {
+	if index == len(data)-1 {
+		data = data[:(len(data) - 1)]
+		return data
+	}
+	data = append(data[:index], data[index+1:]...)
+	return data
 }

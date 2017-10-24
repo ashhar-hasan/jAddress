@@ -1,8 +1,8 @@
 package address
 
 type AddressResult struct {
-	Summary     AddressDetails    `json:"Summary,omitempty"`
-	AddressList []AddressResponse `json:"AddressList,omitempty"`
+	Summary     AddressDetails `json:"Summary,omitempty"`
+	AddressList interface{}    `json:"AddressList,omitempty"`
 }
 
 type AddressDetails struct {

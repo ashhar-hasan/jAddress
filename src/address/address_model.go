@@ -77,8 +77,7 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		logger.Error(fmt.Sprintf("Mysql Error while getting data from customer_address table |%s|%s|%s", appconstant.MYSQL_ERROR, e.Error(), "customer_address"))
 		return nil, e
 	}
-
-	addresses := make([]AddressResponse, 0)
+	var addresses []AddressResponse
 	encryptedFields := make([]EncryptedFields, 0)
 	for rows.Next() {
 		var (
@@ -136,9 +135,11 @@ func getAddressList(params *RequestParams, addressId string, debug *Debug) (addr
 		mergeDecryptedFieldsWithAddressResult(res, &addresses)
 	}
 
+	temp := make([]AddressResponse, len(addresses))
+	copy(temp, addresses)
 	if addressId == "" {
-		if len(addresses) != 0 {
-			err = saveDataInCache(customerId, addresses)
+		if len(temp) != 0 {
+			err = saveDataInCache(customerId, temp)
 			if err != nil {
 				logger.Error(fmt.Sprintf("getAddressList:Could not update addressList in cache. %s", err.Error()))
 			}

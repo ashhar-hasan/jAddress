@@ -39,16 +39,25 @@ func (a *DeleteAddressAPI) GetOrchestrator() orchestrator.Orchestrator {
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
-
+	requestValidator := new(QueryTermValidator)
+	requestValidator.SetID("2")
+	err = deleteAddressWorkflow.AddExecutionNode(requestValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
 	deleteAddressExecutor := new(DeleteAddressExecutor)
-	deleteAddressExecutor.SetID("2")
+	deleteAddressExecutor.SetID("3")
 	err = deleteAddressWorkflow.AddExecutionNode(deleteAddressExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}
 
 	//Add the connections between the nodes
-	err = deleteAddressWorkflow.AddConnection(queryTermEnhancer, deleteAddressExecutor)
+	err = deleteAddressWorkflow.AddConnection(queryTermEnhancer, requestValidator)
+	if err != nil {
+		logger.Error(fmt.Sprintln(err))
+	}
+	err = deleteAddressWorkflow.AddConnection(requestValidator, deleteAddressExecutor)
 	if err != nil {
 		logger.Error(fmt.Sprintln(err))
 	}

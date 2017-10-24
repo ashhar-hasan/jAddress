@@ -46,14 +46,17 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 	var (
 		addressType   string = appconstant.ALL
 		addressResult []AddressResponse
+		cacheResult   []interface{}
 		err           error
 	)
 
 	if params.QueryParams.AddressType != "" {
 		addressType = params.QueryParams.AddressType
 	}
-	addressResult, err = getAddressListFromCache(userID, params.QueryParams, debugInfo)
-	if len(addressResult) == 0 || addressResult == nil || err != nil {
+	var cache = true
+	cacheResult, err = getFilteredListFromCache(userID, params.QueryParams, debugInfo)
+	if len(cacheResult) == 0 || cacheResult == nil || err != nil {
+		cache = false
 		debugInfo.MessageStack = append(debugInfo.MessageStack, DebugInfo{Key: "GetAddressList.Err", Value: err.Error()})
 		logger.Error(fmt.Sprintf("Error in getting addresslist from cache. Error::" + err.Error()))
 		addressResult, err = getAddressList(params, "", debugInfo)
@@ -61,58 +64,45 @@ func GetAddressList(params *RequestParams, debugInfo *Debug) (*AddressResult, er
 			logger.Error(fmt.Sprintf("error in getting the address list - %v", err))
 			return a, err
 		}
-	}
-	start := params.QueryParams.Offset
-	end := params.QueryParams.Offset + params.QueryParams.Limit
-	addressFiltered := make([]AddressResponse, 0)
-	if params.QueryParams.AddressType == "all" || params.QueryParams.AddressType == "" {
-		if params.QueryParams.Limit != 0 {
-			addressFiltered = addressResult
-			billing, shipping := false, false
-			for k, v := range addressFiltered {
-				if billing && shipping {
-					break
+		billing, shipping := false, false
+		for k, v := range addressResult {
+			if billing && shipping {
+				break
+			}
+			if v.IsDefaultBilling == "1" && v.IsDefaultShipping == "1" {
+				addressResult[0], addressResult[k] = addressResult[k], addressResult[0]
+				if len(addressResult) == 1 {
+					addressResult = append(addressResult, addressResult[0])
+				} else {
+					temp := addressResult[1]
+					addressResult[1] = addressResult[0]
+					addressResult = append(addressResult, temp)
 				}
-				if v.IsDefaultBilling == "1" && v.IsDefaultShipping == "1" {
-					addressFiltered[0], addressFiltered[k] = addressFiltered[k], addressFiltered[0]
-					break
-				}
-				if !shipping && v.IsDefaultShipping == "1" {
-					addressFiltered[1], addressFiltered[k] = addressFiltered[k], addressFiltered[1]
-					shipping = true
-				}
-				if !billing && v.IsDefaultBilling == "1" {
-					addressFiltered[0], addressFiltered[k] = addressFiltered[k], addressFiltered[0]
-					billing = true
-				}
+				both = true
+				break
+			}
+			if !shipping && v.IsDefaultShipping == "1" {
+				addressResult[1], addressResult[k] = addressResult[k], addressResult[1]
+				shipping = true
+				both = false
+			}
+			if !billing && v.IsDefaultBilling == "1" {
+				addressResult[0], addressResult[k] = addressResult[k], addressResult[0]
+				billing = true
+				both = false
 			}
 		}
+	}
+	var result interface{}
+	var length int
+	//Because type of cacheResult and DB result is different
+	if cache {
+		result, length = filterCacheResult(cacheResult, params)
 	} else {
-		for _, v := range addressResult {
-			if params.QueryParams.AddressType == "billing" {
-				if v.IsDefaultBilling == "1" {
-					addressFiltered = append(addressFiltered, v)
-				}
-			} else if params.QueryParams.AddressType == "shipping" {
-				if v.IsDefaultShipping == "1" {
-					addressFiltered = append(addressFiltered, v)
-				}
-			} else if params.QueryParams.AddressType == "other" {
-				if v.IsDefaultShipping == "0" && v.IsDefaultBilling == "0" {
-					addressFiltered = append(addressFiltered, v)
-				}
-			}
-		}
+		result, length = filterDBResult(addressResult, params)
 	}
-	if end > len(addressFiltered) {
-		end = len(addressFiltered)
-	}
-	if start > end {
-		start = end
-	}
-	addressResult = addressFiltered[start:end]
-	a.AddressList = addressResult
-	a.Summary = AddressDetails{Count: len(addressResult), Type: addressType}
+	a.AddressList = result
+	a.Summary = AddressDetails{Count: length, Type: addressType}
 	return a, nil
 }
 
@@ -184,17 +174,14 @@ func AddAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, error)
 		return a, errors.New("Some error occured while adding new address")
 	}
 	id := fmt.Sprintf("%d", lastInsertedId)
-	updateAddressListInCache(params, fmt.Sprintf("%d", lastInsertedId), debugInfo)
+	addressResult := updateAddressListInCache(params, id, debugInfo)
 	if params.QueryParams.Default == 1 && isFirst == false {
 		_, err := UpdateType(params, debugInfo)
 		if err != nil {
 			logger.Error(fmt.Sprintf("There is some error occured while updating the type %v", err), rc)
 			return a, errors.New("Some error occurred while setting the default address")
 		}
-	}
-	addressResult, err := getAddressList(params, id, debugInfo)
-	if err != nil {
-		logger.Warning(fmt.Sprintf("Some error occured while getting address details after adding new address"), rc)
+		addressResult, _ = getAddressList(params, id, debugInfo)
 	}
 	a.AddressList = addressResult
 	return a, nil
@@ -236,6 +223,7 @@ func DeleteAddress(params *RequestParams, debugInfo *Debug) (*AddressResult, err
 	}
 }
 
+//checks the address to be deleted is default or not
 func checkDefaultAddress(params *RequestParams, debugInfo *Debug) (int, error) {
 
 	userID := params.RequestContext.UserID
@@ -268,4 +256,86 @@ func checkDefaultAddress(params *RequestParams, debugInfo *Debug) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+func filterCacheResult(addressResult []interface{}, params *RequestParams) (interface{}, int) {
+	length := len(addressResult)
+	if length == 0 {
+		return nil, 0
+	}
+	start := params.QueryParams.Offset
+	end := params.QueryParams.Offset + params.QueryParams.Limit
+	addressType := params.QueryParams.AddressType
+	if addressType == "all" || addressType == "" {
+		if both {
+			if length > 2 {
+				addressResult = append(addressResult[:1], addressResult[2:]...)
+			} else {
+				addressResult = addressResult[0:1]
+			}
+		}
+	} else if addressType == "billing" {
+		addressResult = addressResult[0:1]
+	} else if addressType == "shipping" {
+		if length > 2 {
+			addressResult = addressResult[1:2]
+		} else {
+			addressResult = addressResult[1:]
+		}
+	} else if addressType == "other" {
+		if length > 2 {
+			addressResult = addressResult[2:]
+		} else {
+			addressResult = nil
+		}
+	}
+	if end > len(addressResult) {
+		end = len(addressResult)
+	}
+	if start > end {
+		start = end
+	}
+	addressResult = addressResult[start:end]
+	return addressResult, len(addressResult)
+}
+
+func filterDBResult(addressResult []AddressResponse, params *RequestParams) (interface{}, int) {
+	length := len(addressResult)
+	if length == 0 {
+		return nil, 0
+	}
+	start := params.QueryParams.Offset
+	end := params.QueryParams.Offset + params.QueryParams.Limit
+	addressType := params.QueryParams.AddressType
+	if addressType == "all" || addressType == "" {
+		if both {
+			if length > 2 {
+				addressResult = append(addressResult[:1], addressResult[2:]...)
+			} else {
+				addressResult = addressResult[0:1]
+			}
+		}
+	} else if addressType == "billing" {
+		addressResult = addressResult[0:1]
+	} else if addressType == "shipping" {
+		if length > 2 {
+			addressResult = addressResult[1:2]
+		} else {
+			addressResult = addressResult[1:]
+		}
+	} else if addressType == "other" {
+		if length > 2 {
+			addressResult = addressResult[2:]
+		} else {
+			addressResult = nil
+		}
+	}
+	if end > len(addressResult) {
+		end = len(addressResult)
+	}
+	if start > end {
+		start = end
+	}
+	addressResult = addressResult[start:end]
+	return addressResult, len(addressResult)
 }
